@@ -195,4 +195,62 @@ class AuthRepository {
                 }
         }
     }
+
+    fun getCurrentUserProfile(
+        onResult: (Result<UserProfile?>) -> Unit
+    ) {
+        val firebaseUser = auth.currentUser
+
+        if (firebaseUser == null) {
+            onResult(Result.success(null))
+            return
+        }
+
+        firestore
+            .collection("users")
+            .document(firebaseUser.uid)
+            .get()
+            .addOnSuccessListener { document ->
+
+                if (!document.exists()) {
+                    auth.signOut()
+                    onResult(Result.success(null))
+                    return@addOnSuccessListener
+                }
+
+                val userProfile =
+                    document.toObject(
+                        UserProfile::class.java
+                    )
+
+                if (userProfile == null) {
+                    auth.signOut()
+                    onResult(Result.success(null))
+                    return@addOnSuccessListener
+                }
+
+                val roleIsValid =
+                    userProfile.role == "CUSTOMER" ||
+                            userProfile.role == "BARBER"
+
+                if (!roleIsValid) {
+                    auth.signOut()
+                    onResult(Result.success(null))
+                    return@addOnSuccessListener
+                }
+
+                onResult(
+                    Result.success(userProfile)
+                )
+            }
+            .addOnFailureListener { error ->
+                onResult(
+                    Result.failure(error)
+                )
+            }
+    }
+
+    fun logout() {
+        auth.signOut()
+    }
 }

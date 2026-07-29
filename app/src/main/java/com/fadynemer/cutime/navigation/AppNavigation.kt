@@ -37,11 +37,11 @@ fun AppNavigation() {
         }
 
         composable("home") {
-            HomeScreen()
+            HomeScreen(navController = navController)
         }
 
         composable("dashboard") {
-            DashboardScreen()
+            DashboardScreen(navController = navController)
         }
     }
 }
