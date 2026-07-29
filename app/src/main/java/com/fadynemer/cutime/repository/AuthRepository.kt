@@ -196,6 +196,21 @@ class AuthRepository {
         }
     }
 
+    fun sendPasswordResetEmail(
+        email: String,
+        onResult: (Result<Unit>) -> Unit
+    ) {
+        val cleanEmail = email.trim().lowercase()
+
+        auth.sendPasswordResetEmail(cleanEmail)
+            .addOnSuccessListener {
+                onResult(Result.success(Unit))
+            }
+            .addOnFailureListener { error ->
+                onResult(Result.failure(error))
+            }
+    }
+
     fun getCurrentUserProfile(
         onResult: (Result<UserProfile?>) -> Unit
     ) {

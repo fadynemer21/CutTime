@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
@@ -18,7 +19,6 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -29,6 +29,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.fadynemer.cutime.R
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
+import com.fadynemer.cutime.ui.theme.CutTimeSuccess
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
 import com.fadynemer.cutime.viewmodel.LoginViewModel
 
@@ -53,23 +54,26 @@ fun LoginScreen(
         mutableStateOf(false)
     }
 
+    var showResetEmailError by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     val uiState = loginViewModel.uiState
 
+    val emailIsValid =
+        Patterns.EMAIL_ADDRESS
+            .matcher(email.trim())
+            .matches()
+
     val emailError =
-        showValidationErrors && (
-                email.isBlank() ||
-                        !Patterns.EMAIL_ADDRESS
-                            .matcher(email.trim())
-                            .matches()
-                )
+        (showValidationErrors || showResetEmailError) &&
+                !emailIsValid
 
     val passwordError =
         showValidationErrors && password.isBlank()
 
     val formIsValid =
-        Patterns.EMAIL_ADDRESS
-            .matcher(email.trim())
-            .matches() &&
+        emailIsValid &&
                 password.isNotBlank()
 
     LaunchedEffect(
@@ -158,10 +162,8 @@ fun LoginScreen(
                 value = email,
                 onValueChange = {
                     email = it
-
-                    if (uiState.errorMessage != null) {
-                        loginViewModel.clearError()
-                    }
+                    showResetEmailError = false
+                    loginViewModel.clearMessages()
                 },
                 label = {
                     Text("Email")
@@ -189,10 +191,7 @@ fun LoginScreen(
                 value = password,
                 onValueChange = {
                     password = it
-
-                    if (uiState.errorMessage != null) {
-                        loginViewModel.clearError()
-                    }
+                    loginViewModel.clearMessages()
                 },
                 label = {
                     Text("Password")
@@ -250,13 +249,35 @@ fun LoginScreen(
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
-                        // Password reset will be implemented later.
+                    .clickable(
+                        enabled = !uiState.isLoading
+                    ) {
+                        if (emailIsValid) {
+                            showResetEmailError = false
+
+                            loginViewModel.sendPasswordResetEmail(
+                                email = email
+                            )
+                        } else {
+                            showResetEmailError = true
+                        }
                     },
                 textAlign = TextAlign.End
             )
 
             Spacer(modifier = Modifier.height(20.dp))
+
+            uiState.successMessage?.let { successMessage ->
+                Text(
+                    text = successMessage,
+                    color = CutTimeSuccess,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             uiState.errorMessage?.let { errorMessage ->
                 Text(
