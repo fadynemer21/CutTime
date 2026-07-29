@@ -23,7 +23,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.fadynemer.cutime.R
 import com.fadynemer.cutime.components.BarberCard
-import com.fadynemer.cutime.model.BarberShop
+import com.fadynemer.cutime.data.SampleBarberData
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
 import com.fadynemer.cutime.viewmodel.SessionViewModel
@@ -37,42 +37,7 @@ fun HomeScreen(
         mutableStateOf("")
     }
 
-    val sampleBarbers = remember {
-        listOf(
-            BarberShop(
-                id = "barber_1",
-                name = "Urban Fade Studio",
-                rating = 4.9,
-                reviewCount = 128,
-                startingPrice = 60,
-                nextAvailable = "Today at 14:30"
-            ),
-            BarberShop(
-                id = "barber_2",
-                name = "Classic Cuts",
-                rating = 4.8,
-                reviewCount = 94,
-                startingPrice = 50,
-                nextAvailable = "Today at 16:00"
-            ),
-            BarberShop(
-                id = "barber_3",
-                name = "Sharp Style Barbers",
-                rating = 4.7,
-                reviewCount = 76,
-                startingPrice = 55,
-                nextAvailable = "Tomorrow at 10:30"
-            ),
-            BarberShop(
-                id = "barber_4",
-                name = "The Barber Room",
-                rating = 4.6,
-                reviewCount = 51,
-                startingPrice = 45,
-                nextAvailable = "Tomorrow at 12:00"
-            )
-        )
-    }
+    val sampleBarbers = SampleBarberData.barberShops
 
     val filteredBarbers =
         remember(searchQuery, sampleBarbers) {
@@ -233,10 +198,9 @@ fun HomeScreen(
                             BarberCard(
                                 barberShop = barberShop,
                                 onViewProfile = {
-                                    /*
-                                     * Barber profile navigation
-                                     * will be added next.
-                                     */
+                                    navController.navigate(
+                                        "barber_profile/${barberShop.id}"
+                                    )
                                 }
                             )
                         }
