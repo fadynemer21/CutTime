@@ -1,4 +1,4 @@
 package com.fadynemer.cutime.screens
 
-class AppointmentsScreen {
+class AppointmentScreen {
 }

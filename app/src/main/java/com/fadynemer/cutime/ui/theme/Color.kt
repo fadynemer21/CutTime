@@ -2,10 +2,20 @@ package com.fadynemer.cutime.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Main brand colours
+val CutTimeNavy = Color(0xFF071A33)
+val CutTimeRed = Color(0xFFD71920)
+val CutTimeWhite = Color(0xFFFFFFFF)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// Background and surfaces
+val CutTimeBackground = Color(0xFFF7F8FA)
+val CutTimeSurface = Color(0xFFFFFFFF)
+val CutTimeLightGrey = Color(0xFFE8EBF0)
+
+// Text colours
+val CutTimeTextPrimary = Color(0xFF101828)
+val CutTimeTextSecondary = Color(0xFF667085)
+
+// Status colours
+val CutTimeSuccess = Color(0xFF22C55E)
+val CutTimeError = Color(0xFFDC2626)
