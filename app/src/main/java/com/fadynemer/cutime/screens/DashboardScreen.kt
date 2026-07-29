@@ -12,21 +12,21 @@ import androidx.compose.ui.unit.sp
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 
 @Composable
-fun HomeScreen() {
+fun DashboardScreen() {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Customer Home",
+            text = "Barber Dashboard",
             color = CutTimeNavy,
             fontSize = 28.sp,
             fontWeight = FontWeight.SemiBold
         )
 
         Text(
-            text = "Available barbers will appear here."
+            text = "Appointments and availability will appear here."
         )
     }
 }

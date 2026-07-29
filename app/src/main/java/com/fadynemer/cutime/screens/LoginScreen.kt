@@ -1,5 +1,6 @@
 package com.fadynemer.cutime.screens
 
+import android.util.Patterns
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,28 +11,88 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.fadynemer.cutime.R
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
+import com.fadynemer.cutime.viewmodel.LoginViewModel
 
 @Composable
-fun LoginScreen(navController: NavController) {
+fun LoginScreen(
+    navController: NavController,
+    loginViewModel: LoginViewModel = viewModel()
+) {
+    var email by rememberSaveable {
+        mutableStateOf("")
+    }
 
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
+    var password by rememberSaveable {
+        mutableStateOf("")
+    }
+
+    var passwordVisible by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var showValidationErrors by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    val uiState = loginViewModel.uiState
+
+    val emailError =
+        showValidationErrors && (
+                email.isBlank() ||
+                        !Patterns.EMAIL_ADDRESS
+                            .matcher(email.trim())
+                            .matches()
+                )
+
+    val passwordError =
+        showValidationErrors && password.isBlank()
+
+    val formIsValid =
+        Patterns.EMAIL_ADDRESS
+            .matcher(email.trim())
+            .matches() &&
+                password.isNotBlank()
+
+    LaunchedEffect(
+        uiState.loginSuccessful,
+        uiState.loggedInRole
+    ) {
+        if (uiState.loginSuccessful) {
+            val destination =
+                if (uiState.loggedInRole == "BARBER") {
+                    "dashboard"
+                } else {
+                    "home"
+                }
+
+            navController.navigate(destination) {
+                popUpTo("welcome") {
+                    inclusive = true
+                }
+
+                launchSingleTop = true
+            }
+        }
+    }
 
     CompositionLocalProvider(
         LocalLayoutDirection provides LayoutDirection.Ltr
@@ -39,11 +100,12 @@ fun LoginScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationBarsPadding()
+                .imePadding()
                 .padding(horizontal = 20.dp)
                 .padding(top = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Start
@@ -64,7 +126,9 @@ fun LoginScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(0.dp))
 
             Image(
-                painter = painterResource(id = R.drawable.cutime_logo),
+                painter = painterResource(
+                    id = R.drawable.cutime_logo
+                ),
                 contentDescription = "CutTime Logo",
                 modifier = Modifier.size(120.dp)
             )
@@ -92,7 +156,13 @@ fun LoginScreen(navController: NavController) {
 
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = {
+                    email = it
+
+                    if (uiState.errorMessage != null) {
+                        loginViewModel.clearError()
+                    }
+                },
                 label = {
                     Text("Email")
                 },
@@ -100,6 +170,15 @@ fun LoginScreen(navController: NavController) {
                     Text("Enter your email")
                 },
                 singleLine = true,
+                isError = emailError,
+                supportingText = {
+                    if (emailError) {
+                        Text("Enter a valid email address.")
+                    }
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email
+                ),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -108,7 +187,13 @@ fun LoginScreen(navController: NavController) {
 
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = {
+                    password = it
+
+                    if (uiState.errorMessage != null) {
+                        loginViewModel.clearError()
+                    }
+                },
                 label = {
                     Text("Password")
                 },
@@ -116,6 +201,12 @@ fun LoginScreen(navController: NavController) {
                     Text("Enter your password")
                 },
                 singleLine = true,
+                isError = passwordError,
+                supportingText = {
+                    if (passwordError) {
+                        Text("Password is required.")
+                    }
+                },
                 shape = RoundedCornerShape(14.dp),
                 visualTransformation =
                     if (passwordVisible) {
@@ -145,6 +236,9 @@ fun LoginScreen(navController: NavController) {
                         )
                     }
                 },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password
+                ),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -157,17 +251,37 @@ fun LoginScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        // Forgot-password flow later
+                        // Password reset will be implemented later.
                     },
                 textAlign = TextAlign.End
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            uiState.errorMessage?.let { errorMessage ->
+                Text(
+                    text = errorMessage,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             Button(
                 onClick = {
-                    // Firebase login later
+                    showValidationErrors = true
+
+                    if (formIsValid) {
+                        loginViewModel.loginUser(
+                            email = email,
+                            password = password
+                        )
+                    }
                 },
+                enabled = !uiState.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -176,11 +290,19 @@ fun LoginScreen(navController: NavController) {
                     containerColor = CutTimeNavy
                 )
             ) {
-                Text(
-                    text = "Login",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "Login",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

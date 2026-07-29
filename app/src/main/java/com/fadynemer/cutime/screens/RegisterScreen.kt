@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -20,17 +21,18 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.fadynemer.cutime.R
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
+import com.fadynemer.cutime.viewmodel.RegisterViewModel
 
 private enum class AccountType {
     CUSTOMER,
@@ -38,8 +40,10 @@ private enum class AccountType {
 }
 
 @Composable
-fun RegisterScreen(navController: NavController) {
-
+fun RegisterScreen(
+    navController: NavController,
+    registerViewModel: RegisterViewModel = viewModel()
+) {
     var fullName by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -54,13 +58,39 @@ fun RegisterScreen(navController: NavController) {
 
     var showErrors by rememberSaveable { mutableStateOf(false) }
 
+    val uiState = registerViewModel.uiState
+
+    LaunchedEffect(
+        uiState.registrationSuccessful,
+        uiState.registeredRole
+    ) {
+        if (uiState.registrationSuccessful) {
+            val destination =
+                if (uiState.registeredRole == "BARBER") {
+                    "dashboard"
+                } else {
+                    "home"
+                }
+
+            navController.navigate(destination) {
+                popUpTo("welcome") {
+                    inclusive = true
+                }
+
+                launchSingleTop = true
+            }
+        }
+    }
+
     val fullNameError =
         showErrors && fullName.isBlank()
 
     val emailError =
         showErrors && (
                 email.isBlank() ||
-                        !Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()
+                        !Patterns.EMAIL_ADDRESS
+                            .matcher(email.trim())
+                            .matches()
                 )
 
     val passwordLengthValid = password.length >= 8
@@ -85,7 +115,9 @@ fun RegisterScreen(navController: NavController) {
 
     val formIsValid =
         fullName.isNotBlank() &&
-                Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() &&
+                Patterns.EMAIL_ADDRESS
+                    .matcher(email.trim())
+                    .matches() &&
                 passwordLengthValid &&
                 passwordHasCapital &&
                 passwordHasNumber &&
@@ -105,7 +137,6 @@ fun RegisterScreen(navController: NavController) {
                 .padding(top = 8.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Start
@@ -124,7 +155,9 @@ fun RegisterScreen(navController: NavController) {
             }
 
             Image(
-                painter = painterResource(id = R.drawable.cutime_logo),
+                painter = painterResource(
+                    id = R.drawable.cutime_logo
+                ),
                 contentDescription = "CuTime Logo",
                 modifier = Modifier.size(100.dp)
             )
@@ -350,7 +383,8 @@ fun RegisterScreen(navController: NavController) {
                 if (selectedAccountType == AccountType.CUSTOMER) {
                     Button(
                         onClick = {
-                            selectedAccountType = AccountType.CUSTOMER
+                            selectedAccountType =
+                                AccountType.CUSTOMER
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -365,7 +399,8 @@ fun RegisterScreen(navController: NavController) {
                 } else {
                     OutlinedButton(
                         onClick = {
-                            selectedAccountType = AccountType.CUSTOMER
+                            selectedAccountType =
+                                AccountType.CUSTOMER
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -379,7 +414,8 @@ fun RegisterScreen(navController: NavController) {
                 if (selectedAccountType == AccountType.BARBER) {
                     Button(
                         onClick = {
-                            selectedAccountType = AccountType.BARBER
+                            selectedAccountType =
+                                AccountType.BARBER
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -394,7 +430,8 @@ fun RegisterScreen(navController: NavController) {
                 } else {
                     OutlinedButton(
                         onClick = {
-                            selectedAccountType = AccountType.BARBER
+                            selectedAccountType =
+                                AccountType.BARBER
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -419,16 +456,32 @@ fun RegisterScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(22.dp))
 
+            uiState.errorMessage?.let { errorMessage ->
+                Text(
+                    text = errorMessage,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             Button(
                 onClick = {
                     showErrors = true
 
                     if (formIsValid) {
-                        // Firebase registration will be added next.
-                        // selectedAccountType tells us whether
-                        // this is a CUSTOMER or BARBER account.
+                        registerViewModel.registerUser(
+                            fullName = fullName,
+                            email = email,
+                            password = password,
+                            role = selectedAccountType!!.name
+                        )
                     }
                 },
+                enabled = !uiState.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -437,11 +490,19 @@ fun RegisterScreen(navController: NavController) {
                     containerColor = CutTimeNavy
                 )
             ) {
-                Text(
-                    text = "Create Account",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "Create Account",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -471,11 +532,13 @@ fun RegisterScreen(navController: NavController) {
                             popUpTo("register") {
                                 inclusive = true
                             }
+
                             launchSingleTop = true
                         }
                     }
                 )
             }
+
             Spacer(modifier = Modifier.height(48.dp))
         }
     }

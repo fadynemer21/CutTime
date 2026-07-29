@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "318007038022",
+    "project_id": "cuttime-b1fa1",
+    "storage_bucket": "cuttime-b1fa1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:318007038022:android:681721a55632bf8d777a47",
+        "android_client_info": {
+          "package_name": "com.fadynemer.cutime"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzaKCUWdKOyNeZM125X3CBJpbv7jCDMoc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

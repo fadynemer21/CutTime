@@ -4,10 +4,12 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.fadynemer.cutime.screens.SplashScreen
-import com.fadynemer.cutime.screens.WelcomeScreen
+import com.fadynemer.cutime.screens.DashboardScreen
+import com.fadynemer.cutime.screens.HomeScreen
 import com.fadynemer.cutime.screens.LoginScreen
 import com.fadynemer.cutime.screens.RegisterScreen
+import com.fadynemer.cutime.screens.SplashScreen
+import com.fadynemer.cutime.screens.WelcomeScreen
 
 @Composable
 fun AppNavigation() {
@@ -18,13 +20,12 @@ fun AppNavigation() {
         navController = navController,
         startDestination = "splash"
     ) {
-
         composable("splash") {
-            SplashScreen(navController)
+            SplashScreen(navController = navController)
         }
 
         composable("welcome") {
-            WelcomeScreen(navController)
+            WelcomeScreen(navController = navController)
         }
 
         composable("login") {
@@ -35,5 +36,12 @@ fun AppNavigation() {
             RegisterScreen(navController = navController)
         }
 
+        composable("home") {
+            HomeScreen()
+        }
+
+        composable("dashboard") {
+            DashboardScreen()
+        }
     }
 }
