@@ -2,10 +2,22 @@ package com.fadynemer.cutime.repository
 
 import com.fadynemer.cutime.model.UserProfile
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 
-class AuthRepository {
+interface ProfileDataSource {
+    fun getCurrentUserProfile(
+        onResult: (Result<UserProfile?>) -> Unit
+    )
+
+    fun updateFullName(
+        fullName: String,
+        onResult: (Result<UserProfile>) -> Unit
+    )
+}
+
+class AuthRepository : ProfileDataSource {
 
     private val auth: FirebaseAuth =
         FirebaseAuth.getInstance()
@@ -65,27 +77,45 @@ class AuthRepository {
                 "createdAt" to FieldValue.serverTimestamp()
             )
 
-            firestore
-                .collection("users")
-                .document(firebaseUser.uid)
-                .set(profileData)
-                .addOnSuccessListener {
-                    onResult(
-                        Result.success(userProfile)
-                    )
-                }
-                .addOnFailureListener { firestoreError ->
+            val displayNameUpdate =
+                UserProfileChangeRequest.Builder()
+                    .setDisplayName(cleanName)
+                    .build()
 
-                    /*
-                     * Remove the new Authentication account if its
-                     * Firestore profile could not be saved.
-                     */
+            firebaseUser.updateProfile(displayNameUpdate)
+                .addOnSuccessListener {
+                    firestore
+                        .collection("users")
+                        .document(firebaseUser.uid)
+                        .set(profileData)
+                        .addOnSuccessListener {
+                            onResult(
+                                Result.success(userProfile)
+                            )
+                        }
+                        .addOnFailureListener { firestoreError ->
+                            /*
+                             * Authentication and Firestore form one
+                             * logical registration. Remove the new
+                             * Authentication account if the profile
+                             * document cannot be saved.
+                             */
+                            firebaseUser
+                                .delete()
+                                .addOnCompleteListener {
+                                    onResult(
+                                        Result.failure(
+                                            firestoreError
+                                        )
+                                    )
+                                }
+                        }
+                }
+                .addOnFailureListener { profileError ->
                     firebaseUser
                         .delete()
                         .addOnCompleteListener {
-                            onResult(
-                                Result.failure(firestoreError)
-                            )
+                            onResult(Result.failure(profileError))
                         }
                 }
         }
@@ -211,7 +241,7 @@ class AuthRepository {
             }
     }
 
-    fun getCurrentUserProfile(
+    override fun getCurrentUserProfile(
         onResult: (Result<UserProfile?>) -> Unit
     ) {
         val firebaseUser = auth.currentUser
@@ -262,6 +292,93 @@ class AuthRepository {
                 onResult(
                     Result.failure(error)
                 )
+            }
+    }
+
+    override fun updateFullName(
+        fullName: String,
+        onResult: (Result<UserProfile>) -> Unit
+    ) {
+        val cleanName = fullName.trim()
+        val firebaseUser = auth.currentUser
+
+        if (firebaseUser == null) {
+            onResult(
+                Result.failure(
+                    IllegalStateException(
+                        "Please log in again to update your profile."
+                    )
+                )
+            )
+            return
+        }
+
+        if (cleanName.length !in 2..60) {
+            onResult(
+                Result.failure(
+                    IllegalArgumentException(
+                        "Name must be between 2 and 60 characters."
+                    )
+                )
+            )
+            return
+        }
+
+        val userReference =
+            firestore.collection("users").document(firebaseUser.uid)
+
+        userReference.get()
+            .addOnSuccessListener { document ->
+                val currentProfile =
+                    document.toObject(UserProfile::class.java)
+
+                if (currentProfile == null) {
+                    onResult(
+                        Result.failure(
+                            IllegalStateException(
+                                "Your user profile could not be loaded."
+                            )
+                        )
+                    )
+                    return@addOnSuccessListener
+                }
+
+                val oldDisplayName = firebaseUser.displayName
+                val authUpdate = UserProfileChangeRequest.Builder()
+                    .setDisplayName(cleanName)
+                    .build()
+
+                firebaseUser.updateProfile(authUpdate)
+                    .addOnSuccessListener {
+                        userReference.update(
+                            mapOf(
+                                "fullName" to cleanName,
+                                "updatedAt" to
+                                    FieldValue.serverTimestamp()
+                            )
+                        ).addOnSuccessListener {
+                            onResult(
+                                Result.success(
+                                    currentProfile.copy(
+                                        fullName = cleanName
+                                    )
+                                )
+                            )
+                        }.addOnFailureListener { firestoreError ->
+                            firebaseUser.updateProfile(
+                                UserProfileChangeRequest.Builder()
+                                    .setDisplayName(oldDisplayName)
+                                    .build()
+                            )
+                            onResult(Result.failure(firestoreError))
+                        }
+                    }
+                    .addOnFailureListener { authError ->
+                        onResult(Result.failure(authError))
+                    }
+            }
+            .addOnFailureListener { error ->
+                onResult(Result.failure(error))
             }
     }
 

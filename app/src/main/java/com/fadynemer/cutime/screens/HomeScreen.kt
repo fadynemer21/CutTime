@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,32 +18,37 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.fadynemer.cutime.R
 import com.fadynemer.cutime.components.BarberCard
-import com.fadynemer.cutime.data.SampleBarberData
+import com.fadynemer.cutime.components.CustomerBottomBar
+import com.fadynemer.cutime.components.CustomerDestination
+import com.fadynemer.cutime.model.CatalogSource
+import com.fadynemer.cutime.navigation.AppRoute
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
+import com.fadynemer.cutime.ui.theme.CutTimeLightGrey
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
-import com.fadynemer.cutime.viewmodel.SessionViewModel
+import com.fadynemer.cutime.viewmodel.HomeViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun HomeScreen(
     navController: NavController,
-    sessionViewModel: SessionViewModel = viewModel()
+    homeViewModel: HomeViewModel = viewModel()
 ) {
     var searchQuery by rememberSaveable {
         mutableStateOf("")
     }
 
-    val sampleBarbers = SampleBarberData.barberShops
+    val uiState = homeViewModel.uiState
+    val barbers = uiState.barbers
 
     val filteredBarbers =
-        remember(searchQuery, sampleBarbers) {
+        remember(searchQuery, barbers) {
             if (searchQuery.isBlank()) {
-                sampleBarbers
+                barbers
             } else {
-                sampleBarbers.filter { barberShop ->
+                barbers.filter { barberShop ->
                     barberShop.name.contains(
                         other = searchQuery.trim(),
                         ignoreCase = true
@@ -58,14 +62,34 @@ fun HomeScreen(
     ) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
-            containerColor = MaterialTheme.colorScheme.background
+            containerColor = MaterialTheme.colorScheme.background,
+            bottomBar = {
+                CustomerBottomBar(
+                    selectedDestination =
+                        CustomerDestination.HOME,
+                    onHomeSelected = {},
+                    onAppointmentsSelected = {
+                        navController.navigate(
+                            AppRoute.CustomerAppointments.pattern
+                        ) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onProfileSelected = {
+                        navController.navigate(
+                            AppRoute.CustomerProfile.pattern
+                        ) {
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
         ) { innerPadding ->
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .navigationBarsPadding()
                     .padding(horizontal = 20.dp)
             ) {
                 Spacer(modifier = Modifier.height(12.dp))
@@ -82,28 +106,6 @@ fun HomeScreen(
                         modifier = Modifier.size(150.dp)
                     )
 
-                    IconButton(
-                        onClick = {
-                            sessionViewModel.logout()
-
-                            navController.navigate("welcome") {
-                                popUpTo("home") {
-                                    inclusive = true
-                                }
-
-                                launchSingleTop = true
-                            }
-                        },
-                        modifier = Modifier.align(
-                            Alignment.TopEnd
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Logout,
-                            contentDescription = "Logout",
-                            tint = CutTimeNavy
-                        )
-                    }
                 }
 
                 Text(
@@ -158,7 +160,49 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                if (filteredBarbers.isEmpty()) {
+                if (uiState.source == CatalogSource.DEVELOPMENT_FALLBACK) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        color = CutTimeLightGrey
+                    ) {
+                        Text(
+                            text =
+                                "Development data is shown until real barber profiles are available.",
+                            color = CutTimeTextSecondary,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                if (uiState.isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = CutTimeNavy)
+                    }
+                } else if (uiState.errorMessage != null) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 50.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = uiState.errorMessage,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(onClick = homeViewModel::retry) {
+                            Text("Try Again")
+                        }
+                    }
+                } else if (filteredBarbers.isEmpty()) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -199,7 +243,9 @@ fun HomeScreen(
                                 barberShop = barberShop,
                                 onViewProfile = {
                                     navController.navigate(
-                                        "barber_profile/${barberShop.id}"
+                                        AppRoute.BarberProfile.create(
+                                            barberShop.id
+                                        )
                                     )
                                 }
                             )

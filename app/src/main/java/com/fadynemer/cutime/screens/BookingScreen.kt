@@ -27,6 +27,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +56,9 @@ import com.fadynemer.cutime.ui.theme.CutTimeLightGrey
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeRed
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
+import com.fadynemer.cutime.util.AppointmentDateTime
+import com.fadynemer.cutime.util.AvailabilitySlotGenerator
+import com.fadynemer.cutime.viewmodel.BookingAvailabilityViewModel
 import com.fadynemer.cutime.viewmodel.BookingUiState
 import com.fadynemer.cutime.viewmodel.BookingViewModel
 import java.time.LocalDate
@@ -72,9 +77,25 @@ private data class BookingDateOption(
 fun BookingScreen(
     barberShop: BarberShop?,
     onBack: () -> Unit,
-    bookingViewModel: BookingViewModel = viewModel()
+    onViewAppointments: () -> Unit,
+    bookingViewModel: BookingViewModel = viewModel(),
+    availabilityViewModel:
+        BookingAvailabilityViewModel = viewModel()
 ) {
     val uiState = bookingViewModel.uiState
+    val availabilityState = availabilityViewModel.uiState
+
+    LaunchedEffect(
+        barberShop?.id,
+        uiState.selectedDate
+    ) {
+        val barberId = barberShop?.id
+        val date = uiState.selectedDate
+
+        if (barberId != null && date != null) {
+            availabilityViewModel.observe(barberId, date)
+        }
+    }
 
     CompositionLocalProvider(
         LocalLayoutDirection provides LayoutDirection.Ltr
@@ -87,10 +108,15 @@ fun BookingScreen(
                     title = {
                         Text(
                             text =
-                                if (uiState.isReviewing) {
-                                    "Review Booking"
-                                } else {
-                                    "Book Appointment"
+                                when {
+                                    uiState.createdAppointmentId != null ->
+                                        "Booking Confirmed"
+
+                                    uiState.isReviewing ->
+                                        "Review Booking"
+
+                                    else ->
+                                        "Book Appointment"
                                 },
                             color = CutTimeNavy,
                             fontWeight = FontWeight.SemiBold
@@ -99,7 +125,10 @@ fun BookingScreen(
                     navigationIcon = {
                         IconButton(
                             onClick = {
-                                if (uiState.isReviewing) {
+                                if (
+                                    uiState.isReviewing &&
+                                    uiState.createdAppointmentId == null
+                                ) {
                                     bookingViewModel.editBooking()
                                 } else {
                                     onBack()
@@ -118,8 +147,29 @@ fun BookingScreen(
             }
         ) { innerPadding ->
             when {
+                uiState.createdAppointmentId != null &&
+                    barberShop != null -> {
+                    BookingSuccess(
+                        barberShop = barberShop,
+                        uiState = uiState,
+                        onViewAppointments = onViewAppointments,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    )
+                }
+
                 barberShop == null -> {
                     BookingBarberNotFound(
+                        onBack = onBack,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    )
+                }
+
+                barberShop.isDevelopmentFallback -> {
+                    DevelopmentBookingUnavailable(
                         onBack = onBack,
                         modifier = Modifier
                             .fillMaxSize()
@@ -132,6 +182,11 @@ fun BookingScreen(
                         barberShop = barberShop,
                         uiState = uiState,
                         onEdit = bookingViewModel::editBooking,
+                        onSubmit = {
+                            bookingViewModel.submitBooking(
+                                barberShop
+                            )
+                        },
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(innerPadding)
@@ -142,6 +197,12 @@ fun BookingScreen(
                     BookingForm(
                         barberShop = barberShop,
                         uiState = uiState,
+                        occupiedTimes =
+                            availabilityState.occupiedTimes,
+                        isLoadingTimes =
+                            availabilityState.isLoading,
+                        availabilityError =
+                            availabilityState.errorMessage,
                         onServiceSelected = bookingViewModel::selectService,
                         onDateSelected = bookingViewModel::selectDate,
                         onTimeSelected = bookingViewModel::selectTime,
@@ -157,9 +218,54 @@ fun BookingScreen(
 }
 
 @Composable
+private fun DevelopmentBookingUnavailable(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.ContentCut,
+            contentDescription = null,
+            tint = CutTimeNavy,
+            modifier = Modifier.size(52.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Preview barber",
+            color = CutTimeNavy,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text =
+                "This profile is bundled development data. Booking is disabled so it cannot create an appointment for a barber that does not exist in Firestore.",
+            color = CutTimeTextSecondary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Button(
+            onClick = onBack,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = CutTimeNavy
+            )
+        ) {
+            Text("Back")
+        }
+    }
+}
+
+@Composable
 private fun BookingForm(
     barberShop: BarberShop,
     uiState: BookingUiState,
+    occupiedTimes: Set<String>,
+    isLoadingTimes: Boolean,
+    availabilityError: String?,
     onServiceSelected: (String) -> Unit,
     onDateSelected: (String) -> Unit,
     onTimeSelected: (String) -> Unit,
@@ -172,6 +278,20 @@ private fun BookingForm(
     val selectedService = barberShop.services.find { service ->
         service.id == uiState.selectedServiceId
     }
+    val availableTimes =
+        uiState.selectedDate
+            ?.let { selectedDate ->
+                selectedService?.let { service ->
+                    AvailabilitySlotGenerator.availableTimes(
+                        availability = barberShop.availability,
+                        date = LocalDate.parse(selectedDate),
+                        durationMinutes =
+                            service.durationMinutes,
+                        occupiedTimes = occupiedTimes
+                    )
+                }
+            }
+            .orEmpty()
 
     LazyColumn(
         modifier = modifier.navigationBarsPadding(),
@@ -269,18 +389,62 @@ private fun BookingForm(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(barberShop.availableTimes) { time ->
-                        TimeOption(
-                            time = time,
-                            enabled = uiState.selectedDate != null,
-                            selected = time == uiState.selectedTime,
-                            onClick = {
-                                onTimeSelected(time)
-                            }
-                        )
+                if (uiState.selectedDate == null) {
+                    LazyRow(
+                        horizontalArrangement =
+                            Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(barberShop.availableTimes) { time ->
+                            TimeOption(
+                                time = time,
+                                enabled = false,
+                                selected = false,
+                                onClick = {}
+                            )
+                        }
+                    }
+                } else if (isLoadingTimes) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = CutTimeNavy,
+                        strokeWidth = 2.dp
+                    )
+                } else if (availabilityError != null) {
+                    Text(
+                        text = availabilityError,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 14.sp
+                    )
+                } else if (selectedService == null) {
+                    Text(
+                        text =
+                            "Choose a service to calculate available times.",
+                        color = CutTimeTextSecondary,
+                        fontSize = 14.sp
+                    )
+                } else if (availableTimes.isEmpty()) {
+                    Text(
+                        text =
+                            "No remaining times are available on this date.",
+                        color = CutTimeTextSecondary,
+                        fontSize = 14.sp
+                    )
+                } else {
+                    LazyRow(
+                        horizontalArrangement =
+                            Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(availableTimes) { time ->
+                            TimeOption(
+                                time = time,
+                                enabled = true,
+                                selected =
+                                    time == uiState.selectedTime,
+                                onClick = {
+                                    onTimeSelected(time)
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -504,7 +668,14 @@ private fun BookingSummaryCard(
             Spacer(modifier = Modifier.height(12.dp))
             SummaryRow("Service", service.name)
             SummaryRow("Duration", "${service.durationMinutes} minutes")
-            SummaryRow("Date", selectedDate ?: "Not selected")
+            SummaryRow(
+                "Date",
+                selectedDate
+                    ?.let(
+                        AppointmentDateTime::formatDateForDisplay
+                    )
+                    ?: "Not selected"
+            )
             SummaryRow("Time", selectedTime ?: "Not selected")
             SummaryRow("Total", "₪${service.price}", emphasized = true)
         }
@@ -516,6 +687,7 @@ private fun BookingReview(
     barberShop: BarberShop,
     uiState: BookingUiState,
     onEdit: () -> Unit,
+    onSubmit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val selectedService = barberShop.services.first { service ->
@@ -572,7 +744,12 @@ private fun BookingReview(
                         "Duration",
                         "${selectedService.durationMinutes} minutes"
                     )
-                    SummaryRow("Date", uiState.selectedDate.orEmpty())
+                    SummaryRow(
+                        "Date",
+                        AppointmentDateTime.formatDateForDisplay(
+                            uiState.selectedDate.orEmpty()
+                        )
+                    )
                     SummaryRow("Time", uiState.selectedTime.orEmpty())
                     SummaryRow(
                         label = "Total",
@@ -584,27 +761,55 @@ private fun BookingReview(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                color = CutTimeLightGrey
-            ) {
-                Text(
-                    text =
-                        "Appointment submission will be enabled when secure " +
-                            "Firestore booking and double-booking protection " +
-                            "are connected.",
-                    color = CutTimeTextSecondary,
-                    textAlign = TextAlign.Center,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(14.dp)
-                )
+            if (uiState.errorMessage != null) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Text(
+                        text = uiState.errorMessage,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        textAlign = TextAlign.Center,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(14.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onSubmit,
+                enabled = !uiState.isSubmitting,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = CutTimeNavy
+                )
+            ) {
+                if (uiState.isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "Confirm Appointment",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedButton(
                 onClick = onEdit,
+                enabled = !uiState.isSubmitting,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -612,6 +817,93 @@ private fun BookingReview(
             ) {
                 Text("Edit Selection")
             }
+        }
+    }
+}
+
+@Composable
+private fun BookingSuccess(
+    barberShop: BarberShop,
+    uiState: BookingUiState,
+    onViewAppointments: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val selectedService =
+        barberShop.services.first { service ->
+            service.id == uiState.selectedServiceId
+        }
+
+    Column(
+        modifier = modifier
+            .navigationBarsPadding()
+            .padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.CheckCircle,
+            contentDescription = null,
+            tint = CutTimeRed,
+            modifier = Modifier.size(72.dp)
+        )
+        Spacer(modifier = Modifier.height(18.dp))
+        Text(
+            text = "Appointment booked",
+            color = CutTimeNavy,
+            fontSize = 26.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text =
+                "Your appointment with ${barberShop.name} is confirmed.",
+            color = CutTimeTextSecondary,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                SummaryRow("Service", selectedService.name)
+                SummaryRow(
+                    "Date",
+                    AppointmentDateTime.formatDateForDisplay(
+                        uiState.selectedDate.orEmpty()
+                    )
+                )
+                SummaryRow("Time", uiState.selectedTime.orEmpty())
+                SummaryRow(
+                    "Total",
+                    "₪${selectedService.price}",
+                    emphasized = true
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(22.dp))
+
+        Button(
+            onClick = onViewAppointments,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = CutTimeNavy
+            )
+        ) {
+            Text(
+                text = "View My Appointments",
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
@@ -721,8 +1013,6 @@ private fun BookingBarberNotFound(
 }
 
 private fun createDateOptions(): List<BookingDateOption> {
-    val valueFormatter =
-        DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.ENGLISH)
     val dayFormatter =
         DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)
     val monthFormatter =
@@ -732,7 +1022,7 @@ private fun createDateOptions(): List<BookingDateOption> {
         val date = LocalDate.now().plusDays(dayOffset)
 
         BookingDateOption(
-            value = date.format(valueFormatter),
+            value = date.format(DateTimeFormatter.ISO_LOCAL_DATE),
             dayName =
                 if (dayOffset == 0L) {
                     "Today"

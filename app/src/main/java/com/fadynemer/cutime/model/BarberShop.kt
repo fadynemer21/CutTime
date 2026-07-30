@@ -11,7 +11,9 @@ data class BarberShop(
     val services: List<BarberService>,
     val openingHours: List<OpeningHours>,
     val galleryItemCount: Int,
-    val availableTimes: List<String>
+    val availableTimes: List<String>,
+    val availability: BarberAvailability = BarberAvailability(),
+    val isDevelopmentFallback: Boolean = false
 )
 
 data class BarberService(

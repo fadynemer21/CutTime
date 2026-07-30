@@ -30,6 +30,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -37,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -45,19 +47,26 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fadynemer.cutime.model.BarberShop
+import com.fadynemer.cutime.model.Rating
 import com.fadynemer.cutime.ui.theme.CutTimeLightGrey
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeRed
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
+import com.fadynemer.cutime.viewmodel.BarberReviewsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BarberProfileScreen(
     barberShop: BarberShop?,
     onBack: () -> Unit,
-    onBookAppointment: () -> Unit
+    onBookAppointment: () -> Unit,
+    reviewsViewModel: BarberReviewsViewModel = viewModel()
 ) {
+    LaunchedEffect(barberShop?.id) {
+        barberShop?.id?.let(reviewsViewModel::observe)
+    }
     CompositionLocalProvider(
         LocalLayoutDirection provides LayoutDirection.Ltr
     ) {
@@ -96,6 +105,8 @@ fun BarberProfileScreen(
             } else {
                 BarberProfileContent(
                     barberShop = barberShop,
+                    reviewsState = reviewsViewModel.uiState,
+                    onRetryReviews = reviewsViewModel::retry,
                     onBookAppointment = onBookAppointment,
                     modifier = Modifier
                         .fillMaxSize()
@@ -109,6 +120,9 @@ fun BarberProfileScreen(
 @Composable
 private fun BarberProfileContent(
     barberShop: BarberShop,
+    reviewsState:
+        com.fadynemer.cutime.viewmodel.BarberReviewsUiState,
+    onRetryReviews: () -> Unit,
     onBookAppointment: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -194,6 +208,17 @@ private fun BarberProfileContent(
         }
 
         item {
+            ProfileSection(title = "Customer Reviews") {
+                ReviewsContent(
+                    ratings = reviewsState.reviewsWithText,
+                    isLoading = reviewsState.isLoading,
+                    errorMessage = reviewsState.errorMessage,
+                    onRetry = onRetryReviews
+                )
+            }
+        }
+
+        item {
             Column {
                 SectionTitle("Gallery")
                 Spacer(modifier = Modifier.height(10.dp))
@@ -257,8 +282,19 @@ private fun BarberProfileContent(
         }
 
         item {
+            if (barberShop.isDevelopmentFallback) {
+                Text(
+                    text =
+                        "Development preview only. Add this barber to Firestore before accepting bookings.",
+                    color = CutTimeRed,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
             Button(
                 onClick = onBookAppointment,
+                enabled = !barberShop.isDevelopmentFallback,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -268,12 +304,118 @@ private fun BarberProfileContent(
                 )
             ) {
                 Text(
-                    text = "Book Appointment",
+                    text =
+                        if (barberShop.isDevelopmentFallback) {
+                            "Booking Disabled for Preview Data"
+                        } else {
+                            "Book Appointment"
+                        },
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ReviewsContent(
+    ratings: List<Rating>,
+    isLoading: Boolean,
+    errorMessage: String?,
+    onRetry: () -> Unit
+) {
+    when {
+        isLoading -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = CutTimeNavy,
+                    modifier = Modifier.size(28.dp),
+                    strokeWidth = 3.dp
+                )
+            }
+        }
+
+        errorMessage != null -> {
+            Column(
+                horizontalAlignment = Alignment.Start
+            ) {
+                Text(
+                    text = errorMessage,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = onRetry,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CutTimeNavy
+                    )
+                ) {
+                    Text("Retry")
+                }
+            }
+        }
+
+        ratings.isEmpty() -> {
+            Text(
+                text = "No written reviews yet.",
+                color = CutTimeTextSecondary
+            )
+        }
+
+        else -> {
+            ratings.take(5).forEachIndexed { index, rating ->
+                RatingRow(rating)
+                if (index < ratings.take(5).lastIndex) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RatingRow(rating: Rating) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = rating.customerName,
+                color = CutTimeNavy,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f)
+            )
+            Row {
+                repeat(5) { index ->
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint =
+                            if (index < rating.stars) {
+                                CutTimeRed
+                            } else {
+                                CutTimeLightGrey
+                            },
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = rating.review,
+            color = CutTimeTextSecondary,
+            lineHeight = 20.sp,
+            fontSize = 14.sp
+        )
     }
 }
 

@@ -1,0 +1,397 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentUser() {
+      return get(
+        /databases/$(database)/documents/users/$(request.auth.uid)
+      );
+    }
+
+    function hasRole(role) {
+      return signedIn() &&
+        currentUser().data.role == role;
+    }
+
+    function canUseCustomerFeatures() {
+      return signedIn() &&
+        currentUser().data.role in ['CUSTOMER', 'BARBER'];
+    }
+
+    function ownsUser(userId) {
+      return signedIn() &&
+        request.auth.uid == userId;
+    }
+
+    function appointmentAfter(appointmentId) {
+      return getAfter(
+        /databases/$(database)/documents/appointments/$(appointmentId)
+      );
+    }
+
+    function ratingAfter(ratingId) {
+      return getAfter(
+        /databases/$(database)/documents/ratings/$(ratingId)
+      );
+    }
+
+    function selectedService(barberId, serviceId) {
+      return get(
+        /databases/$(database)/documents/barberProfiles/$(barberId)/services/$(serviceId)
+      );
+    }
+
+    function selectedBarber(barberId) {
+      return get(
+        /databases/$(database)/documents/barberProfiles/$(barberId)
+      );
+    }
+
+    function barberAfter(barberId) {
+      return getAfter(
+        /databases/$(database)/documents/barberProfiles/$(barberId)
+      );
+    }
+
+    match /users/{userId} {
+      allow create: if ownsUser(userId) &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.role in ['CUSTOMER', 'BARBER'] &&
+        request.resource.data.fullName is string &&
+        request.resource.data.fullName.size() >= 2 &&
+        request.resource.data.fullName.size() <= 60 &&
+        request.resource.data.email == request.auth.token.email &&
+        request.resource.data.createdAt == request.time;
+
+      allow read: if ownsUser(userId);
+
+      allow update: if ownsUser(userId) &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['fullName', 'updatedAt']) &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.fullName is string &&
+        request.resource.data.fullName.size() >= 2 &&
+        request.resource.data.fullName.size() <= 60 &&
+        request.resource.data.updatedAt == request.time;
+
+      allow delete: if false;
+    }
+
+    match /appointments/{appointmentId} {
+      allow create: if canUseCustomerFeatures() &&
+        request.resource.data.appointmentId == appointmentId &&
+        request.resource.data.customerId == request.auth.uid &&
+        request.resource.data.barberId != request.auth.uid &&
+        request.resource.data.status == 'UPCOMING' &&
+        request.resource.data.startAt > request.time &&
+        request.resource.data.endAt >
+          request.resource.data.startAt &&
+        request.resource.data.endAt -
+          request.resource.data.startAt ==
+            duration.value(
+              request.resource.data.durationMinutes,
+              'm'
+            ) &&
+        request.resource.data.durationMinutes > 0 &&
+        request.resource.data.price >= 0 &&
+        request.resource.data.customerName is string &&
+        request.resource.data.customerName.size() > 0 &&
+        request.resource.data.customerEmail is string &&
+        request.resource.data.customerEmail ==
+          request.auth.token.email &&
+        selectedBarber(
+          request.resource.data.barberId
+        ).data.shopName ==
+          request.resource.data.barberName &&
+        selectedService(
+          request.resource.data.barberId,
+          request.resource.data.serviceId
+        ).data.name == request.resource.data.serviceName &&
+        selectedService(
+          request.resource.data.barberId,
+          request.resource.data.serviceId
+        ).data.price == request.resource.data.price &&
+        selectedService(
+          request.resource.data.barberId,
+          request.resource.data.serviceId
+        ).data.durationMinutes ==
+          request.resource.data.durationMinutes &&
+        request.resource.data.slotIds is list &&
+        request.resource.data.slotIds.size() > 0 &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time;
+
+      allow read: if signedIn() &&
+        (
+          resource.data.customerId == request.auth.uid ||
+          resource.data.barberId == request.auth.uid
+        );
+
+      allow update: if signedIn() &&
+        resource.data.status == 'UPCOMING' &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'updatedAt']) &&
+        request.resource.data.updatedAt == request.time &&
+        (
+          (
+            resource.data.customerId == request.auth.uid &&
+            request.resource.data.status == 'CANCELLED'
+          ) ||
+          (
+            resource.data.barberId == request.auth.uid &&
+            (
+              request.resource.data.status == 'CANCELLED' ||
+              (
+                request.resource.data.status == 'COMPLETED' &&
+                resource.data.endAt <= request.time
+              )
+            )
+          )
+        );
+
+      allow update: if canUseCustomerFeatures() &&
+        resource.data.customerId == request.auth.uid &&
+        resource.data.status == 'UPCOMING' &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            'appointmentDate',
+            'appointmentTime',
+            'startAt',
+            'endAt',
+            'slotIds',
+            'rescheduledAt',
+            'updatedAt'
+          ]) &&
+        request.resource.data.startAt > request.time &&
+        request.resource.data.endAt >
+          request.resource.data.startAt &&
+        request.resource.data.endAt -
+          request.resource.data.startAt ==
+            duration.value(
+              resource.data.durationMinutes,
+              'm'
+            ) &&
+        request.resource.data.slotIds is list &&
+        request.resource.data.slotIds.size() > 0 &&
+        request.resource.data.rescheduledAt == request.time &&
+        request.resource.data.updatedAt == request.time;
+
+      allow update: if canUseCustomerFeatures() &&
+        resource.data.customerId == request.auth.uid &&
+        resource.data.status == 'COMPLETED' &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['ratingId', 'updatedAt']) &&
+        request.resource.data.ratingId == appointmentId &&
+        request.resource.data.updatedAt == request.time &&
+        ratingAfter(appointmentId).data.appointmentId ==
+          appointmentId &&
+        ratingAfter(appointmentId).data.customerId ==
+          request.auth.uid &&
+        ratingAfter(appointmentId).data.barberId ==
+          resource.data.barberId;
+
+      allow delete: if false;
+    }
+
+    match /barberProfiles/{barberId} {
+      allow read: if signedIn();
+
+      allow create: if hasRole('BARBER') &&
+          request.auth.uid == barberId &&
+          request.resource.data.uid == request.auth.uid &&
+          request.resource.data.shopName is string &&
+          request.resource.data.shopName.size() >= 2 &&
+          request.resource.data.description is string &&
+          request.resource.data.description.size() >= 10 &&
+          request.resource.data.description.size() <= 500 &&
+          request.resource.data.get('ratingCount', 0) == 0 &&
+          request.resource.data.get('ratingSum', 0) == 0 &&
+          request.resource.data.get('ratingAverage', 0) == 0 &&
+          request.resource.data.updatedAt == request.time;
+
+      allow update: if hasRole('BARBER') &&
+          request.auth.uid == barberId &&
+          request.resource.data.uid == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly([
+              'shopName',
+              'description',
+              'updatedAt'
+            ]) &&
+          request.resource.data.shopName is string &&
+          request.resource.data.shopName.size() >= 2 &&
+          request.resource.data.description is string &&
+          request.resource.data.description.size() >= 10 &&
+          request.resource.data.description.size() <= 500 &&
+          request.resource.data.updatedAt == request.time;
+
+      allow update: if canUseCustomerFeatures() &&
+        request.auth.uid != barberId &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            'ratingCount',
+            'ratingSum',
+            'ratingAverage',
+            'lastRatingId',
+            'updatedAt'
+          ]) &&
+        request.resource.data.lastRatingId is string &&
+        ratingAfter(
+          request.resource.data.lastRatingId
+        ).data.barberId == barberId &&
+        ratingAfter(
+          request.resource.data.lastRatingId
+        ).data.customerId == request.auth.uid &&
+        ratingAfter(
+          request.resource.data.lastRatingId
+        ).data.createdAt == request.time &&
+        appointmentAfter(
+          request.resource.data.lastRatingId
+        ).data.ratingId ==
+          request.resource.data.lastRatingId &&
+        request.resource.data.ratingCount ==
+          resource.data.get('ratingCount', 0) + 1 &&
+        request.resource.data.ratingSum ==
+          resource.data.get('ratingSum', 0) +
+            ratingAfter(
+              request.resource.data.lastRatingId
+            ).data.stars &&
+        request.resource.data.ratingAverage ==
+          request.resource.data.ratingSum /
+            request.resource.data.ratingCount &&
+        request.resource.data.updatedAt == request.time;
+
+      allow delete: if false;
+
+      match /services/{serviceId} {
+        allow read: if signedIn();
+
+        allow create, update: if hasRole('BARBER') &&
+          request.auth.uid == barberId &&
+          request.resource.data.serviceId == serviceId &&
+          request.resource.data.barberId == request.auth.uid &&
+          request.resource.data.name is string &&
+          request.resource.data.name.size() >= 2 &&
+          request.resource.data.price > 0 &&
+          request.resource.data.durationMinutes > 0 &&
+          request.resource.data.durationMinutes % 15 == 0 &&
+          request.resource.data.updatedAt == request.time;
+
+        allow delete: if hasRole('BARBER') &&
+          request.auth.uid == barberId &&
+          resource.data.barberId == request.auth.uid;
+      }
+    }
+
+    match /barberAvailability/{barberId} {
+      allow read: if signedIn();
+
+      allow create, update: if hasRole('BARBER') &&
+        request.auth.uid == barberId &&
+        request.resource.data.barberId == request.auth.uid &&
+        request.resource.data.days is list &&
+        request.resource.data.days.size() == 7 &&
+        request.resource.data.blockedDates is list &&
+        request.resource.data.updatedAt == request.time;
+
+      allow delete: if false;
+    }
+
+    match /bookingSlots/{slotId} {
+      allow create: if canUseCustomerFeatures() &&
+        request.resource.data.createdAt == request.time &&
+        appointmentAfter(
+          request.resource.data.appointmentId
+        ).data.customerId == request.auth.uid &&
+        appointmentAfter(
+          request.resource.data.appointmentId
+        ).data.barberId == request.resource.data.barberId &&
+        appointmentAfter(
+          request.resource.data.appointmentId
+        ).data.slotIds.hasAny([slotId]);
+
+      // Signed-in users query these minimal lock documents to filter occupied
+      // starts. Appointment details remain protected in /appointments.
+      allow read: if signedIn();
+
+      allow update: if canUseCustomerFeatures() &&
+        resource.data.appointmentId ==
+          request.resource.data.appointmentId &&
+        appointmentAfter(
+          resource.data.appointmentId
+        ).data.customerId == request.auth.uid &&
+        appointmentAfter(
+          resource.data.appointmentId
+        ).data.status == 'UPCOMING' &&
+        appointmentAfter(
+          resource.data.appointmentId
+        ).data.slotIds.hasAny([slotId]) &&
+        request.resource.data.barberId ==
+          appointmentAfter(
+            resource.data.appointmentId
+          ).data.barberId &&
+        request.resource.data.createdAt == request.time;
+
+      allow delete: if signedIn() &&
+        (
+          appointmentAfter(
+            resource.data.appointmentId
+          ).data.status == 'CANCELLED' ||
+          (
+            appointmentAfter(
+              resource.data.appointmentId
+            ).data.status == 'UPCOMING' &&
+            !appointmentAfter(
+              resource.data.appointmentId
+            ).data.slotIds.hasAny([slotId])
+          )
+        ) &&
+        (
+          appointmentAfter(
+            resource.data.appointmentId
+          ).data.customerId == request.auth.uid ||
+          appointmentAfter(
+            resource.data.appointmentId
+          ).data.barberId == request.auth.uid
+        );
+    }
+
+    match /ratings/{ratingId} {
+      allow read: if signedIn();
+
+      allow create: if canUseCustomerFeatures() &&
+        request.resource.data.ratingId == ratingId &&
+        request.resource.data.appointmentId == ratingId &&
+        request.resource.data.customerId == request.auth.uid &&
+        request.resource.data.stars is int &&
+        request.resource.data.stars >= 1 &&
+        request.resource.data.stars <= 5 &&
+        request.resource.data.review is string &&
+        request.resource.data.review.size() <= 500 &&
+        request.resource.data.createdAt == request.time &&
+        get(
+          /databases/$(database)/documents/appointments/$(ratingId)
+        ).data.customerId == request.auth.uid &&
+        get(
+          /databases/$(database)/documents/appointments/$(ratingId)
+        ).data.barberId == request.resource.data.barberId &&
+        get(
+          /databases/$(database)/documents/appointments/$(ratingId)
+        ).data.status == 'COMPLETED' &&
+        appointmentAfter(ratingId).data.ratingId == ratingId &&
+        barberAfter(
+          request.resource.data.barberId
+        ).data.lastRatingId == ratingId;
+
+      allow update, delete: if false;
+    }
+  }
+}

@@ -1,17 +1,21 @@
 package com.fadynemer.cutime.viewmodel
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import com.fadynemer.cutime.repository.AuthRepository
+import com.fadynemer.cutime.util.AccountModePreferences
 
 data class SplashUiState(
     val isCheckingSession: Boolean = true,
     val destination: String? = null
 )
 
-class SplashViewModel : ViewModel() {
+class SplashViewModel(
+    application: Application
+) : AndroidViewModel(application) {
 
     private val authRepository = AuthRepository()
 
@@ -31,7 +35,17 @@ class SplashViewModel : ViewModel() {
                     val destination =
                         when (userProfile?.role) {
                             "CUSTOMER" -> "home"
-                            "BARBER" -> "dashboard"
+                            "BARBER" ->
+                                if (
+                                    AccountModePreferences.isCustomerMode(
+                                        getApplication(),
+                                        userProfile.uid
+                                    )
+                                ) {
+                                    "home"
+                                } else {
+                                    "dashboard"
+                                }
                             else -> "welcome"
                         }
 
