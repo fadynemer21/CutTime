@@ -243,7 +243,7 @@ private fun DevelopmentBookingUnavailable(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text =
-                "This profile is bundled development data. Booking is disabled so it cannot create an appointment for a barber that does not exist in Firestore.",
+                "This is bundled development data, not a Barber account. Create a Barber account and save its shop profile, service, and availability before customers can book it.",
             color = CutTimeTextSecondary,
             textAlign = TextAlign.Center
         )
@@ -450,16 +450,6 @@ private fun BookingForm(
             }
         }
 
-        if (selectedService != null) {
-            item {
-                BookingSummaryCard(
-                    service = selectedService,
-                    selectedDate = uiState.selectedDate,
-                    selectedTime = uiState.selectedTime
-                )
-            }
-        }
-
         item {
             Button(
                 onClick = onReview,
@@ -641,44 +631,6 @@ private fun TimeOption(
                 vertical = 12.dp
             )
         )
-    }
-}
-
-@Composable
-private fun BookingSummaryCard(
-    service: BarberService,
-    selectedDate: String?,
-    selectedTime: String?
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Booking summary",
-                color = CutTimeNavy,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            SummaryRow("Service", service.name)
-            SummaryRow("Duration", "${service.durationMinutes} minutes")
-            SummaryRow(
-                "Date",
-                selectedDate
-                    ?.let(
-                        AppointmentDateTime::formatDateForDisplay
-                    )
-                    ?: "Not selected"
-            )
-            SummaryRow("Time", selectedTime ?: "Not selected")
-            SummaryRow("Total", "₪${service.price}", emphasized = true)
-        }
     }
 }
 

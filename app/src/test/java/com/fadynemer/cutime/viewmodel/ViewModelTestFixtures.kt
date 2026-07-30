@@ -54,6 +54,8 @@ internal class FakeAppointmentActionsDataSource :
         private set
     var completedAppointmentId: String? = null
         private set
+    var hiddenAppointmentId: String? = null
+        private set
     var rescheduleRequest: RescheduleRequest? = null
         private set
     var observationStopCount = 0
@@ -92,6 +94,14 @@ internal class FakeAppointmentActionsDataSource :
         completeCalls += 1
         completedAppointmentId = appointmentId
         completeCallback = onResult
+    }
+
+    override fun hideCancelledAppointment(
+        appointmentId: String,
+        onResult: (Result<Unit>) -> Unit
+    ) {
+        hiddenAppointmentId = appointmentId
+        onResult(Result.success(Unit))
     }
 
     override fun rescheduleAppointment(

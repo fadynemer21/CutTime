@@ -91,6 +91,44 @@ class AppointmentsViewModel(
         }
     }
 
+    fun deleteCancelledFromHistory(
+        appointmentId: String
+    ) {
+        val actions = appointmentActions
+
+        if (actions == null) {
+            uiState = uiState.copy(
+                errorMessage =
+                    "Appointment actions are unavailable."
+            )
+            return
+        }
+
+        if (uiState.updatingAppointmentId != null) return
+
+        uiState = uiState.copy(
+            updatingAppointmentId = appointmentId,
+            errorMessage = null
+        )
+        actions.hideCancelledAppointment(
+            appointmentId
+        ) { result ->
+            result
+                .onSuccess {
+                    uiState = uiState.copy(
+                        updatingAppointmentId = null
+                    )
+                }
+                .onFailure { error ->
+                    uiState = uiState.copy(
+                        updatingAppointmentId = null,
+                        errorMessage =
+                            createReadableError(error)
+                    )
+                }
+        }
+    }
+
     private fun observeAppointments() {
         observation =
             appointmentRepository.observeCustomerAppointments { result ->

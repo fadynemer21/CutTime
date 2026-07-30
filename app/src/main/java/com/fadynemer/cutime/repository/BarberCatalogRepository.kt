@@ -6,6 +6,7 @@ import com.fadynemer.cutime.model.BarberCatalog
 import com.fadynemer.cutime.model.BarberAvailability
 import com.fadynemer.cutime.model.BarberService
 import com.fadynemer.cutime.model.BarberShop
+import com.fadynemer.cutime.model.BarberShopReadinessEvaluator
 import com.fadynemer.cutime.model.CatalogSource
 import com.fadynemer.cutime.model.DayAvailability
 import com.fadynemer.cutime.model.OpeningHours
@@ -215,10 +216,14 @@ class BarberCatalogRepository(
                 profile.getString("description").orEmpty()
 
             if (
-                name.isBlank() ||
-                description.isBlank() ||
+                !BarberShopReadinessEvaluator.profileComplete(
+                    name,
+                    description
+                ) ||
                 serviceList.isEmpty() ||
-                barberAvailability == null
+                barberAvailability == null ||
+                barberAvailability.days.size != 7 ||
+                barberAvailability.days.none { it.isOpen }
             ) {
                 onResult(Result.success(null))
                 return
@@ -309,7 +314,7 @@ class BarberCatalogRepository(
     private fun mapService(
         document: DocumentSnapshot
     ): BarberService? {
-        return BarberService(
+        val service = BarberService(
             id =
                 document.getString("serviceId")
                     ?: document.id,
@@ -323,13 +328,32 @@ class BarberCatalogRepository(
                 document.getLong("durationMinutes")?.toInt()
                     ?: return null
         )
+        return service.takeIf {
+            it.name.trim().length >= 2 &&
+                it.price > 0 &&
+                it.durationMinutes > 0 &&
+                it.durationMinutes % 15 == 0
+        }
     }
 
     private fun mapAvailability(
         document: DocumentSnapshot
-    ): BarberAvailability {
+    ): BarberAvailability? {
         val rawDays =
             document.get("days") as? List<*>
+        val dayMaps =
+            rawDays
+                ?.mapNotNull { raw ->
+                    @Suppress("UNCHECKED_CAST")
+                    raw as? Map<String, Any?>
+                }
+                .orEmpty()
+        val (saved, _) =
+            BarberShopReadinessEvaluator.availabilityState(
+                exists = document.exists(),
+                rawDays = dayMaps
+            )
+        if (!saved) return null
 
         val days = rawDays
             ?.mapNotNull { raw ->
@@ -354,9 +378,7 @@ class BarberCatalogRepository(
                 .orEmpty()
 
         return BarberAvailability(
-            days = days.ifEmpty {
-                com.fadynemer.cutime.model.defaultWorkingWeek()
-            },
+            days = days,
             blockedDates = blockedDates
         )
     }

@@ -28,6 +28,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.fadynemer.cutime.components.BarberDestination
 import com.fadynemer.cutime.components.BarberManagementScaffold
+import com.fadynemer.cutime.navigation.AppRoute
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeSuccess
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
@@ -147,6 +148,20 @@ fun BarberManageProfileScreen(
                 Spacer(modifier = Modifier.height(14.dp))
                 OutlinedButton(
                     onClick = {
+                        navController.navigate(
+                            AppRoute.BarberGallery.pattern
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    Text("Manage Gallery")
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                OutlinedButton(
+                    onClick = {
                         val uid =
                             FirebaseAuth.getInstance()
                                 .currentUser?.uid
@@ -156,8 +171,12 @@ fun BarberManageProfileScreen(
                                 uid,
                                 true
                             )
-                            navController.navigate("home") {
-                                popUpTo("dashboard") {
+                            navController.navigate(
+                                AppRoute.CustomerHome.pattern
+                            ) {
+                                popUpTo(
+                                    AppRoute.BarberDashboard.pattern
+                                ) {
                                     inclusive = true
                                 }
                                 launchSingleTop = true

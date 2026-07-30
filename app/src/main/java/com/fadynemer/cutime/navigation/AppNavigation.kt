@@ -1,15 +1,19 @@
 package com.fadynemer.cutime.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.fadynemer.cutime.data.BarberCatalogCache
 import com.fadynemer.cutime.screens.BarberProfileScreen
 import com.fadynemer.cutime.screens.AppointmentDetailScreen
 import com.fadynemer.cutime.screens.BarberAvailabilityScreen
+import com.fadynemer.cutime.screens.BarberGalleryManagementScreen
 import com.fadynemer.cutime.screens.BarberManageProfileScreen
 import com.fadynemer.cutime.screens.BarberServicesScreen
 import com.fadynemer.cutime.screens.BookingScreen
@@ -18,16 +22,45 @@ import com.fadynemer.cutime.screens.HomeScreen
 import com.fadynemer.cutime.screens.AppointmentsScreen
 import com.fadynemer.cutime.screens.CustomerProfileScreen
 import com.fadynemer.cutime.screens.LoginScreen
+import com.fadynemer.cutime.screens.NotificationCenterScreen
+import com.fadynemer.cutime.screens.NotificationSettingsScreen
 import com.fadynemer.cutime.screens.RegisterScreen
 import com.fadynemer.cutime.screens.RescheduleScreen
 import com.fadynemer.cutime.screens.RatingScreen
 import com.fadynemer.cutime.screens.SplashScreen
 import com.fadynemer.cutime.screens.WelcomeScreen
+import com.fadynemer.cutime.util.NotificationRouter
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(
+    externalRoute: String? = null,
+    onExternalRouteConsumed: () -> Unit = {}
+) {
 
     val navController = rememberNavController()
+    val currentEntry by
+        navController.currentBackStackEntryAsState()
+    val currentRoute = currentEntry?.destination?.route
+
+    LaunchedEffect(externalRoute, currentRoute) {
+        val route = externalRoute ?: return@LaunchedEffect
+        val authenticationRoutes = setOf(
+            AppRoute.Splash.pattern,
+            AppRoute.Welcome.pattern,
+            AppRoute.Login.pattern,
+            AppRoute.Register.pattern
+        )
+
+        if (
+            currentRoute != null &&
+            currentRoute !in authenticationRoutes
+        ) {
+            navController.navigate(route) {
+                launchSingleTop = true
+            }
+            onExternalRouteConsumed()
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -271,6 +304,58 @@ fun AppNavigation() {
         composable(AppRoute.BarberManageProfile.pattern) {
             BarberManageProfileScreen(
                 navController = navController
+            )
+        }
+
+        composable(AppRoute.BarberGallery.pattern) {
+            BarberGalleryManagementScreen(
+                navController = navController
+            )
+        }
+
+        composable(
+            route = AppRoute.Notifications.pattern,
+            arguments = listOf(
+                navArgument(RouteArguments.MODE) {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val isBarberMode = backStackEntry.arguments
+                ?.getString(RouteArguments.MODE) == "barber"
+            NotificationCenterScreen(
+                isBarberMode = isBarberMode,
+                onBack = navController::navigateUp,
+                onOpenSettings = { barberMode ->
+                    navController.navigate(
+                        AppRoute.NotificationSettings.create(barberMode)
+                    )
+                },
+                onNotificationSelected = {
+                        notification,
+                        barberMode ->
+                    navController.navigate(
+                        NotificationRouter.destination(
+                            notification = notification,
+                            isBarberMode = barberMode
+                        )
+                    )
+                }
+            )
+        }
+
+        composable(
+            route = AppRoute.NotificationSettings.pattern,
+            arguments = listOf(
+                navArgument(RouteArguments.MODE) {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            NotificationSettingsScreen(
+                isBarberMode = backStackEntry.arguments
+                    ?.getString(RouteArguments.MODE) == "barber",
+                onBack = navController::navigateUp
             )
         }
     }

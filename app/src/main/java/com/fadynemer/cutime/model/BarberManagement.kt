@@ -18,6 +18,10 @@ data class BarberAvailability(
     val blockedDates: List<String> = emptyList()
 )
 
+data class AvailabilitySaveResult(
+    val cancelledAppointmentCount: Int = 0
+)
+
 fun defaultWorkingWeek(): List<DayAvailability> {
     return listOf(
         DayAvailability("Sunday", true, "09:00", "19:00"),

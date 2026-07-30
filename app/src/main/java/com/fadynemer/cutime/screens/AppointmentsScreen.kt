@@ -1,7 +1,8 @@
 package com.fadynemer.cutime.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -34,6 +35,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -60,6 +63,8 @@ import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
 import com.fadynemer.cutime.util.AppointmentDateTime
 import com.fadynemer.cutime.viewmodel.AppointmentsUiState
 import com.fadynemer.cutime.viewmodel.AppointmentsViewModel
+import com.fadynemer.cutime.viewmodel.NotificationPreferencesViewModel
+import com.fadynemer.cutime.notifications.AppointmentReminderScheduler
 
 private enum class AppointmentSection(
     val title: String
@@ -76,11 +81,32 @@ fun AppointmentsScreen(
     onBrowseBarbers: () -> Unit,
     onProfileSelected: () -> Unit,
     onAppointmentSelected: (String) -> Unit,
-    appointmentsViewModel: AppointmentsViewModel = viewModel()
+    appointmentsViewModel: AppointmentsViewModel = viewModel(),
+    preferencesViewModel:
+        NotificationPreferencesViewModel = viewModel()
 ) {
     val uiState = appointmentsViewModel.uiState
+    val preferencesState = preferencesViewModel.uiState
+    val context = LocalContext.current
     var appointmentToCancel by remember {
         mutableStateOf<Appointment?>(null)
+    }
+    var appointmentToDelete by remember {
+        mutableStateOf<Appointment?>(null)
+    }
+
+    LaunchedEffect(
+        uiState.groups.upcoming,
+        preferencesState.saved,
+        preferencesState.isLoading
+    ) {
+        if (!preferencesState.isLoading) {
+            AppointmentReminderScheduler.sync(
+                context = context,
+                appointments = uiState.groups.upcoming,
+                preferences = preferencesState.saved
+            )
+        }
     }
 
     CompositionLocalProvider(
@@ -116,6 +142,9 @@ fun AppointmentsScreen(
                 onBrowseBarbers = onBrowseBarbers,
                 onCancel = { appointment ->
                     appointmentToCancel = appointment
+                },
+                onDeleteFromHistory = { appointment ->
+                    appointmentToDelete = appointment
                 },
                 onAppointmentSelected = onAppointmentSelected,
                 modifier = Modifier
@@ -162,6 +191,45 @@ fun AppointmentsScreen(
             }
         )
     }
+
+    appointmentToDelete?.let { appointment ->
+        AlertDialog(
+            onDismissRequest = {
+                appointmentToDelete = null
+            },
+            title = { Text("Delete from history?") },
+            text = {
+                Text(
+                    "This cancelled appointment with ${appointment.barberName} will disappear from your history. The barber's record will not be deleted."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        appointmentsViewModel
+                            .deleteCancelledFromHistory(
+                                appointment.id
+                            )
+                        appointmentToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CutTimeRed
+                    )
+                ) {
+                    Text("Delete from History")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        appointmentToDelete = null
+                    }
+                ) {
+                    Text("Keep")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -170,6 +238,7 @@ private fun AppointmentsContent(
     onRetry: () -> Unit,
     onBrowseBarbers: () -> Unit,
     onCancel: (Appointment) -> Unit,
+    onDeleteFromHistory: (Appointment) -> Unit,
     onAppointmentSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -228,6 +297,7 @@ private fun AppointmentsContent(
                             appointment =
                                 uiState.groups.upcoming[index],
                             onCancel = onCancel,
+                            onDeleteFromHistory = null,
                             onSelected = onAppointmentSelected
                         )
                     }
@@ -250,6 +320,7 @@ private fun AppointmentsContent(
                             appointment =
                                 uiState.groups.completed[index],
                             onCancel = null,
+                            onDeleteFromHistory = null,
                             onSelected = onAppointmentSelected
                         )
                     }
@@ -262,6 +333,14 @@ private fun AppointmentsContent(
                             count = uiState.groups.cancelled.size
                         )
                     }
+                    item {
+                        Text(
+                            text =
+                                "Long-press a cancelled appointment to delete it from your history.",
+                            color = CutTimeTextSecondary,
+                            fontSize = 13.sp
+                        )
+                    }
                     items(
                         count = uiState.groups.cancelled.size,
                         key = { index ->
@@ -272,6 +351,8 @@ private fun AppointmentsContent(
                             appointment =
                                 uiState.groups.cancelled[index],
                             onCancel = null,
+                            onDeleteFromHistory =
+                                onDeleteFromHistory,
                             onSelected = onAppointmentSelected
                         )
                     }
@@ -307,10 +388,12 @@ private fun AppointmentSectionHeader(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AppointmentCard(
     appointment: Appointment,
     onCancel: ((Appointment) -> Unit)?,
+    onDeleteFromHistory: ((Appointment) -> Unit)?,
     onSelected: (String) -> Unit
 ) {
     val isCancelled =
@@ -322,9 +405,23 @@ private fun AppointmentCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                onSelected(appointment.id)
-            },
+            .combinedClickable(
+                onClick = {
+                    onSelected(appointment.id)
+                },
+                onLongClickLabel =
+                    if (onDeleteFromHistory != null) {
+                        "Delete from history"
+                    } else {
+                        null
+                    },
+                onLongClick =
+                    onDeleteFromHistory?.let { deleteAction ->
+                        {
+                            deleteAction(appointment)
+                        }
+                    }
+            ),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface

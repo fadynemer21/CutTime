@@ -10,6 +10,7 @@ import com.fadynemer.cutime.repository.AppointmentAuthenticationException
 import com.fadynemer.cutime.repository.AppointmentBookingDataSource
 import com.fadynemer.cutime.repository.AppointmentRepository
 import com.fadynemer.cutime.repository.BookingConflictException
+import com.fadynemer.cutime.repository.BookingUnavailableException
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.firestore.FirebaseFirestoreException
 
@@ -40,6 +41,7 @@ class BookingViewModel(
     fun selectService(serviceId: String) {
         uiState = uiState.copy(
             selectedServiceId = serviceId,
+            selectedTime = null,
             isReviewing = false,
             errorMessage = null
         )
@@ -154,6 +156,10 @@ class BookingViewModel(
             error is BookingConflictException ->
                 error.message
                     ?: "That time is no longer available."
+
+            error is BookingUnavailableException ->
+                error.message
+                    ?: "The barber is unavailable on that date."
 
             error is AppointmentAuthenticationException ->
                 error.message

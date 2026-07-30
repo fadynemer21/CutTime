@@ -5,11 +5,14 @@ import com.fadynemer.cutime.model.AppointmentStatus
 import com.fadynemer.cutime.model.BookingRequest
 import com.fadynemer.cutime.model.RescheduleRequest
 import com.fadynemer.cutime.util.AppointmentDateTime
+import com.fadynemer.cutime.util.AppointmentHistoryPolicy
+import com.fadynemer.cutime.util.CustomerNameResolver
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import java.util.Date
 
@@ -18,8 +21,18 @@ class BookingConflictException :
         "That appointment time was just booked. Please choose another time."
     )
 
+class BookingUnavailableException :
+    Exception(
+        "The barber is unavailable on that date. Please choose another day."
+    )
+
 class AppointmentAuthenticationException :
     Exception("Please log in again to continue.")
+
+class AppointmentHistoryDeletionException :
+    Exception(
+        "Only your cancelled appointments can be removed from history."
+    )
 
 interface AppointmentBookingDataSource {
     fun createAppointment(
@@ -47,6 +60,11 @@ interface AppointmentActionsDataSource {
     )
 
     fun completeAppointment(
+        appointmentId: String,
+        onResult: (Result<Unit>) -> Unit
+    )
+
+    fun hideCancelledAppointment(
         appointmentId: String,
         onResult: (Result<Unit>) -> Unit
     )
@@ -92,10 +110,6 @@ class AppointmentRepository(
         }
 
         val customerId = auth.currentUser?.uid
-        val customerName =
-            auth.currentUser?.displayName
-                ?: auth.currentUser?.email
-                ?: "Customer"
         val customerEmail =
             auth.currentUser?.email.orEmpty()
 
@@ -126,15 +140,41 @@ class AppointmentRepository(
 
         val appointmentReference =
             firestore.collection(APPOINTMENTS_COLLECTION).document()
+        val customerProfileReference =
+            firestore.collection(USERS_COLLECTION).document(customerId)
+        val availabilityReference =
+            firestore
+                .collection(AVAILABILITY_COLLECTION)
+                .document(request.barberId)
         val slotReferences = slotIds.map { slotId ->
             firestore.collection(BOOKING_SLOTS_COLLECTION).document(slotId)
         }
 
         firestore.runTransaction { transaction ->
+            val customerProfile =
+                transaction.get(customerProfileReference)
+            val availability =
+                transaction.get(availabilityReference)
             val existingSlots =
                 slotReferences.map { slotReference ->
                     transaction.get(slotReference)
                 }
+
+            val customerName =
+                CustomerNameResolver.resolve(
+                    firestoreFullName =
+                        customerProfile.getString("fullName"),
+                    authenticationDisplayName =
+                        auth.currentUser?.displayName
+                )
+            val blockedDates =
+                (availability.get("blockedDates") as? List<*>)
+                    ?.filterIsInstance<String>()
+                    .orEmpty()
+
+            if (request.appointmentDate in blockedDates) {
+                throw BookingUnavailableException()
+            }
 
             if (existingSlots.any(DocumentSnapshot::exists)) {
                 throw BookingConflictException()
@@ -202,27 +242,64 @@ class AppointmentRepository(
             return null
         }
 
-        val registration = firestore
-            .collection(APPOINTMENTS_COLLECTION)
-            .whereEqualTo("customerId", customerId)
-            .orderBy("startAt", Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    onResult(Result.failure(error))
-                    return@addSnapshotListener
+        var registration: ListenerRegistration? = null
+        var isStopped = false
+
+        firestore
+            .collection(USERS_COLLECTION)
+            .document(customerId)
+            .get()
+            .addOnCompleteListener { profileTask ->
+                if (isStopped) {
+                    return@addOnCompleteListener
                 }
 
-                val appointments =
-                    snapshot
-                        ?.documents
-                        ?.mapNotNull(::documentToAppointment)
-                        .orEmpty()
+                val currentFullName =
+                    profileTask
+                        .takeIf { task -> task.isSuccessful }
+                        ?.result
+                        ?.getString("fullName")
+                        ?.trim()
+                        ?.takeIf(String::isNotBlank)
 
-                onResult(Result.success(appointments))
+                registration =
+                    firestore
+                        .collection(APPOINTMENTS_COLLECTION)
+                        .whereEqualTo("customerId", customerId)
+                        .orderBy(
+                            "startAt",
+                            Query.Direction.DESCENDING
+                        )
+                        .addSnapshotListener { snapshot, error ->
+                            if (error != null) {
+                                onResult(Result.failure(error))
+                                return@addSnapshotListener
+                            }
+
+                            val documents =
+                                snapshot?.documents.orEmpty()
+                            val appointments =
+                                documents.mapNotNull(
+                                    ::documentToAppointment
+                                ).filterNot(
+                                    Appointment::hiddenFromCustomer
+                                )
+
+                            onResult(Result.success(appointments))
+
+                            if (currentFullName != null) {
+                                repairCustomerNames(
+                                    documents = documents,
+                                    customerId = customerId,
+                                    fullName = currentFullName
+                                )
+                            }
+                        }
             }
 
         return AppointmentObservation {
-            registration.remove()
+            isStopped = true
+            registration?.remove()
         }
     }
 
@@ -286,6 +363,62 @@ class AppointmentRepository(
             releaseSlots = false,
             onResult = onResult
         )
+    }
+
+    override fun hideCancelledAppointment(
+        appointmentId: String,
+        onResult: (Result<Unit>) -> Unit
+    ) {
+        val customerId = auth.currentUser?.uid
+
+        if (customerId == null) {
+            onResult(
+                Result.failure(
+                    AppointmentAuthenticationException()
+                )
+            )
+            return
+        }
+
+        val appointmentReference =
+            firestore
+                .collection(APPOINTMENTS_COLLECTION)
+                .document(appointmentId)
+
+        firestore.runTransaction { transaction ->
+            val appointment =
+                transaction.get(appointmentReference)
+
+            if (
+                !appointment.exists() ||
+                !AppointmentHistoryPolicy.canCustomerHide(
+                    authenticatedUserId = customerId,
+                    appointmentCustomerId =
+                        appointment.getString("customerId"),
+                    appointmentStatus =
+                        appointment.getString("status"),
+                    alreadyHidden =
+                        appointment.getBoolean(
+                            "hiddenFromCustomer"
+                        ) ?: false
+                )
+            ) {
+                throw AppointmentHistoryDeletionException()
+            }
+
+            transaction.update(
+                appointmentReference,
+                mapOf(
+                    "hiddenFromCustomer" to true,
+                    "updatedAt" to
+                        FieldValue.serverTimestamp()
+                )
+            )
+        }.addOnSuccessListener {
+            onResult(Result.success(Unit))
+        }.addOnFailureListener { error ->
+            onResult(Result.failure(error))
+        }
     }
 
     override fun observeAppointment(
@@ -384,6 +517,21 @@ class AppointmentRepository(
 
             if (customerId != userId) {
                 throw AppointmentAuthenticationException()
+            }
+
+            val availability =
+                transaction.get(
+                    firestore
+                        .collection(AVAILABILITY_COLLECTION)
+                        .document(barberId)
+                )
+            val blockedDates =
+                (availability.get("blockedDates") as? List<*>)
+                    ?.filterIsInstance<String>()
+                    .orEmpty()
+
+            if (request.appointmentDate in blockedDates) {
+                throw BookingUnavailableException()
             }
 
             val oldSlotIds =
@@ -551,6 +699,41 @@ class AppointmentRepository(
         }
     }
 
+    private fun repairCustomerNames(
+        documents: List<DocumentSnapshot>,
+        customerId: String,
+        fullName: String
+    ) {
+        val staleAppointments =
+            documents.filter { document ->
+                document.getString("customerId") == customerId &&
+                    document.getString("customerName") != fullName
+            }
+
+        if (staleAppointments.isEmpty()) {
+            return
+        }
+
+        staleAppointments
+            .chunked(FIRESTORE_BATCH_WRITE_LIMIT)
+            .forEach { chunk ->
+                firestore.batch()
+                    .apply {
+                        chunk.forEach { document ->
+                            update(
+                                document.reference,
+                                mapOf(
+                                    "customerName" to fullName,
+                                    "updatedAt" to
+                                        FieldValue.serverTimestamp()
+                                )
+                            )
+                        }
+                    }
+                    .commit()
+            }
+    }
+
     private fun documentToAppointment(
         document: DocumentSnapshot
     ): Appointment? {
@@ -603,6 +786,9 @@ class AppointmentRepository(
                 AppointmentStatus.fromFirestore(
                     document.getString("status")
                 ),
+            hiddenFromCustomer =
+                document.getBoolean("hiddenFromCustomer")
+                    ?: false,
             ratingId = document.getString("ratingId"),
             createdAtMillis =
                 document.getTimestamp("createdAt")
@@ -619,5 +805,8 @@ class AppointmentRepository(
     private companion object {
         const val APPOINTMENTS_COLLECTION = "appointments"
         const val BOOKING_SLOTS_COLLECTION = "bookingSlots"
+        const val USERS_COLLECTION = "users"
+        const val AVAILABILITY_COLLECTION = "barberAvailability"
+        const val FIRESTORE_BATCH_WRITE_LIMIT = 500
     }
 }

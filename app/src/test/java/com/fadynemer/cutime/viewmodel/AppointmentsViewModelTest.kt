@@ -80,6 +80,23 @@ class AppointmentsViewModelTest {
         )
     }
 
+    @Test
+    fun deletingCancelledHistory_usesAppointmentActionRepository() {
+        val repository = FakeAppointmentListDataSource()
+        val viewModel = AppointmentsViewModel(repository)
+
+        viewModel.deleteCancelledFromHistory("cancelled_1")
+
+        assertEquals(
+            "cancelled_1",
+            repository.hiddenAppointmentId
+        )
+        assertEquals(
+            null,
+            viewModel.uiState.updatingAppointmentId
+        )
+    }
+
     private class FakeAppointmentListDataSource :
         AppointmentListDataSource,
         AppointmentActionsDataSource {
@@ -94,6 +111,9 @@ class AppointmentsViewModelTest {
             private set
 
         var cancelledAppointmentId: String? = null
+            private set
+
+        var hiddenAppointmentId: String? = null
             private set
 
         override fun observeCustomerAppointments(
@@ -125,6 +145,14 @@ class AppointmentsViewModelTest {
             appointmentId: String,
             onResult: (Result<Unit>) -> Unit
         ) {
+            onResult(Result.success(Unit))
+        }
+
+        override fun hideCancelledAppointment(
+            appointmentId: String,
+            onResult: (Result<Unit>) -> Unit
+        ) {
+            hiddenAppointmentId = appointmentId
             onResult(Result.success(Unit))
         }
 

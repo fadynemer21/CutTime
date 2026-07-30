@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwningBarber(barberId) {
+      return signedIn() &&
+        request.auth.uid == barberId &&
+        firestore.get(
+          /databases/(default)/documents/users/$(request.auth.uid)
+        ).data.role == 'BARBER';
+    }
+
+    function supportedImage() {
+      return request.resource.contentType in [
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'image/heic',
+        'image/heif'
+      ];
+    }
+
+    match /barberGalleries/{barberId}/{imageId} {
+      // Gallery URLs are shown only in authenticated app experiences.
+      allow read: if signedIn();
+
+      allow create: if isOwningBarber(barberId) &&
+        resource == null &&
+        request.resource.size > 0 &&
+        request.resource.size <= 8 * 1024 * 1024 &&
+        supportedImage() &&
+        request.resource.metadata.barberId == barberId &&
+        request.resource.metadata.imageId == imageId;
+
+      // Image replacement is intentionally disallowed. A barber deletes and
+      // uploads a new object so metadata and cached download URLs stay sound.
+      allow update: if false;
+
+      allow delete: if isOwningBarber(barberId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

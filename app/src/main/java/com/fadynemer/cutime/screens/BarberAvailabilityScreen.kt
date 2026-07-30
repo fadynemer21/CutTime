@@ -279,7 +279,7 @@ private fun BlockedDatesSection(
         Spacer(modifier = Modifier.height(5.dp))
         Text(
             text =
-                "Add holidays or days off using YYYY-MM-DD.",
+                "Add holidays or days off using YYYY-MM-DD. Saving a blocked date automatically cancels upcoming appointments on that date and releases their times.",
             color = CutTimeTextSecondary,
             fontSize = 14.sp
         )

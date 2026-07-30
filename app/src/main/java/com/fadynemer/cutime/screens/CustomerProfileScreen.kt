@@ -37,6 +37,7 @@ import com.fadynemer.cutime.components.CustomerBottomBar
 import com.fadynemer.cutime.components.CustomerDestination
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
+import com.fadynemer.cutime.notifications.NotificationRegistrationManager
 import com.fadynemer.cutime.util.AccountModePreferences
 import com.fadynemer.cutime.viewmodel.CustomerProfileViewModel
 import com.fadynemer.cutime.viewmodel.SessionViewModel
@@ -249,8 +250,11 @@ fun CustomerProfileScreen(
                                 profile.uid,
                                 false
                             )
-                            sessionViewModel.logout()
-                            onLoggedOut()
+                            NotificationRegistrationManager
+                                .unregisterCurrentDevice {
+                                    sessionViewModel.logout()
+                                    onLoggedOut()
+                                }
                         },
                         modifier = Modifier
                             .fillMaxWidth()

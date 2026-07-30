@@ -23,18 +23,22 @@ import com.fadynemer.cutime.R
 import com.fadynemer.cutime.components.BarberCard
 import com.fadynemer.cutime.components.CustomerBottomBar
 import com.fadynemer.cutime.components.CustomerDestination
+import com.fadynemer.cutime.components.NotificationIconButton
 import com.fadynemer.cutime.model.CatalogSource
 import com.fadynemer.cutime.navigation.AppRoute
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeLightGrey
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
 import com.fadynemer.cutime.viewmodel.HomeViewModel
+import com.fadynemer.cutime.viewmodel.NotificationBadgeViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun HomeScreen(
     navController: NavController,
-    homeViewModel: HomeViewModel = viewModel()
+    homeViewModel: HomeViewModel = viewModel(),
+    notificationBadgeViewModel:
+        NotificationBadgeViewModel = viewModel()
 ) {
     var searchQuery by rememberSaveable {
         mutableStateOf("")
@@ -106,6 +110,17 @@ fun HomeScreen(
                         modifier = Modifier.size(150.dp)
                     )
 
+                    NotificationIconButton(
+                        unreadCount =
+                            notificationBadgeViewModel.uiState
+                                .unreadCount,
+                        onClick = {
+                            navController.navigate(
+                                AppRoute.Notifications.create(false)
+                            )
+                        },
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                    )
                 }
 
                 Text(
@@ -168,7 +183,7 @@ fun HomeScreen(
                     ) {
                         Text(
                             text =
-                                "Development data is shown until real barber profiles are available.",
+                                "These are development previews and cannot be booked. A real shop appears after a Barber account saves its profile, service, and availability.",
                             color = CutTimeTextSecondary,
                             fontSize = 12.sp,
                             textAlign = TextAlign.Center,

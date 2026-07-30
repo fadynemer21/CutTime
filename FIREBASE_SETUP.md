@@ -94,6 +94,33 @@ so preview IDs can never create live Firestore appointments.
 6. Change the profile from the Barber account and confirm a Customer Home
    listener receives the update.
 
+The Barber Dashboard now contains a live Shop Setup card. It reports the shop
+as bookable only when the following Firebase documents are complete and use the
+same Barber Authentication UID:
+
+```text
+users/{barberUid}
+barberProfiles/{barberUid}
+barberProfiles/{barberUid}/services/{serviceId}
+barberAvailability/{barberUid}
+```
+
+The profile requires a valid shop name and description. At least one service
+must have a positive price and a positive 15-minute-multiple duration.
+Availability must contain all seven days and at least one open day whose start
+time is before its end time.
+
+Gallery images are optional and do not block publication.
+
+If the Dashboard reports `Your shop is live` but a Customer still sees
+development previews, verify that:
+
+1. The Customer and Barber use the same Firebase project configuration.
+2. The deployed Firestore rules permit signed-in catalog reads.
+3. The four document paths above contain matching Barber UIDs.
+4. The Customer device has network connectivity.
+5. Logcat does not contain a Firestore permission or missing-index error.
+
 ## Occupied-slot and rescheduling verification
 
 1. Book a 30-minute service and inspect `bookingSlots`; two 15-minute locks
@@ -144,3 +171,30 @@ After deploying the rules, verify with separate Customer and Barber accounts:
 - A customer cannot directly replace a barber's rating aggregate values.
 - A barber cannot edit another barber's profile, services, or availability.
 - User profile name updates cannot change UID, role, or email.
+
+## Gallery, FCM, and Cloud Functions extension
+
+The repository now also contains:
+
+- `storage.rules` for barber-owned gallery objects.
+- `functions/` with TypeScript appointment, rating, and reminder triggers.
+- Firestore rules for `gallery`, `notifications`, `settings`, and `devices`.
+- A composite `appointments(status, startAt)` index used by reminder scans.
+
+See `GALLERY_NOTIFICATIONS_SETUP.md` for the complete enablement, deployment,
+security, and live-test guide.
+
+After Node.js 22, npm, and Firebase CLI are installed, the shortest safe
+verification and deployment sequence is:
+
+```powershell
+cd C:\Users\Fady\Desktop\CutTime\functions
+npm install
+npm run lint
+npm test
+cd ..
+firebase deploy --only firestore:rules,firestore:indexes,storage,functions
+```
+
+The autonomous batch did not run the deploy command and did not modify the live
+Firebase project.

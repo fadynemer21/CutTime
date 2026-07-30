@@ -4,6 +4,7 @@ import com.fadynemer.cutime.data.SampleBarberData
 import com.fadynemer.cutime.model.BookingRequest
 import com.fadynemer.cutime.repository.AppointmentBookingDataSource
 import com.fadynemer.cutime.repository.BookingConflictException
+import com.fadynemer.cutime.repository.BookingUnavailableException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -30,6 +31,19 @@ class BookingViewModelTest {
         viewModel.selectTime("14:30")
 
         viewModel.selectDate("2026-07-31")
+
+        assertNull(viewModel.uiState.selectedTime)
+        assertFalse(viewModel.uiState.canReview)
+    }
+
+    @Test
+    fun changingService_clearsPreviouslySelectedTime() {
+        val viewModel = createViewModel()
+        viewModel.selectService("service_1")
+        viewModel.selectDate("2026-07-30")
+        viewModel.selectTime("14:30")
+
+        viewModel.selectService("service_2")
 
         assertNull(viewModel.uiState.selectedTime)
         assertFalse(viewModel.uiState.canReview)
@@ -93,6 +107,25 @@ class BookingViewModelTest {
         assertTrue(
             viewModel.uiState.errorMessage
                 ?.contains("choose another time") == true
+        )
+    }
+
+    @Test
+    fun blockedHolidaySubmission_exposesReadableError() {
+        val repository = FakeBookingRepository()
+        val viewModel = BookingViewModel(repository)
+        val barber = SampleBarberData.barberShops.first()
+        selectCompleteBooking(viewModel)
+
+        viewModel.submitBooking(barber)
+        repository.completeWithFailure(
+            BookingUnavailableException()
+        )
+
+        assertFalse(viewModel.uiState.isSubmitting)
+        assertTrue(
+            viewModel.uiState.errorMessage
+                ?.contains("unavailable on that date") == true
         )
     }
 

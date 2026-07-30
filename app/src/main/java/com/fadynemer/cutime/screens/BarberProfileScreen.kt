@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -41,6 +43,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -48,13 +51,16 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil3.compose.AsyncImage
 import com.fadynemer.cutime.model.BarberShop
+import com.fadynemer.cutime.model.GalleryImage
 import com.fadynemer.cutime.model.Rating
 import com.fadynemer.cutime.ui.theme.CutTimeLightGrey
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeRed
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
 import com.fadynemer.cutime.viewmodel.BarberReviewsViewModel
+import com.fadynemer.cutime.viewmodel.BarberGalleryViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,10 +68,21 @@ fun BarberProfileScreen(
     barberShop: BarberShop?,
     onBack: () -> Unit,
     onBookAppointment: () -> Unit,
-    reviewsViewModel: BarberReviewsViewModel = viewModel()
+    reviewsViewModel: BarberReviewsViewModel = viewModel(),
+    galleryViewModel: BarberGalleryViewModel = viewModel()
 ) {
     LaunchedEffect(barberShop?.id) {
-        barberShop?.id?.let(reviewsViewModel::observe)
+        barberShop?.id?.let { barberId ->
+            reviewsViewModel.observe(barberId)
+            galleryViewModel.observe(barberId)
+        }
+    }
+
+    galleryViewModel.uiState.selectedImage?.let { image ->
+        GalleryImageDialog(
+            image = image,
+            onDismiss = galleryViewModel::clearSelection
+        )
     }
     CompositionLocalProvider(
         LocalLayoutDirection provides LayoutDirection.Ltr
@@ -106,7 +123,11 @@ fun BarberProfileScreen(
                 BarberProfileContent(
                     barberShop = barberShop,
                     reviewsState = reviewsViewModel.uiState,
+                    galleryState = galleryViewModel.uiState,
                     onRetryReviews = reviewsViewModel::retry,
+                    onRetryGallery = galleryViewModel::retry,
+                    onSelectGalleryImage =
+                        galleryViewModel::selectImage,
                     onBookAppointment = onBookAppointment,
                     modifier = Modifier
                         .fillMaxSize()
@@ -122,7 +143,11 @@ private fun BarberProfileContent(
     barberShop: BarberShop,
     reviewsState:
         com.fadynemer.cutime.viewmodel.BarberReviewsUiState,
+    galleryState:
+        com.fadynemer.cutime.viewmodel.PublicGalleryUiState,
     onRetryReviews: () -> Unit,
+    onRetryGallery: () -> Unit,
+    onSelectGalleryImage: (String) -> Unit,
     onBookAppointment: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -219,32 +244,19 @@ private fun BarberProfileContent(
         }
 
         item {
-            Column {
-                SectionTitle("Gallery")
-                Spacer(modifier = Modifier.height(10.dp))
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(barberShop.galleryItemCount) {
-                        Surface(
-                            modifier = Modifier.size(116.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            color = CutTimeLightGrey
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Image,
-                                    contentDescription =
-                                        "Gallery image placeholder",
-                                    tint = CutTimeNavy,
-                                    modifier = Modifier.size(34.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            CustomerGallerySection(
+                images = galleryState.images,
+                isLoading = galleryState.isLoading,
+                errorMessage = galleryState.errorMessage,
+                developmentPlaceholderCount =
+                    if (barberShop.isDevelopmentFallback) {
+                        barberShop.galleryItemCount
+                    } else {
+                        0
+                    },
+                onRetry = onRetryGallery,
+                onSelectImage = onSelectGalleryImage
+            )
         }
 
         item {
@@ -285,7 +297,7 @@ private fun BarberProfileContent(
             if (barberShop.isDevelopmentFallback) {
                 Text(
                     text =
-                        "Development preview only. Add this barber to Firestore before accepting bookings.",
+                        "Development preview only. Booking requires a real Barber account with a saved shop profile, service, and availability.",
                     color = CutTimeRed,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
@@ -378,6 +390,153 @@ private fun ReviewsContent(
             }
         }
     }
+}
+
+@Composable
+private fun CustomerGallerySection(
+    images: List<GalleryImage>,
+    isLoading: Boolean,
+    errorMessage: String?,
+    developmentPlaceholderCount: Int,
+    onRetry: () -> Unit,
+    onSelectImage: (String) -> Unit
+) {
+    Column {
+        SectionTitle("Gallery")
+        Spacer(modifier = Modifier.height(10.dp))
+
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(116.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = CutTimeNavy,
+                        modifier = Modifier.size(28.dp),
+                        strokeWidth = 3.dp
+                    )
+                }
+            }
+
+            images.isNotEmpty() -> {
+                LazyRow(
+                    horizontalArrangement =
+                        Arrangement.spacedBy(10.dp)
+                ) {
+                    items(images, key = GalleryImage::id) { image ->
+                        AsyncImage(
+                            model = image.downloadUrl,
+                            contentDescription =
+                                image.caption.ifBlank {
+                                    "Barber gallery image"
+                                },
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(116.dp)
+                                .clickable {
+                                    onSelectImage(image.id)
+                                }
+                        )
+                    }
+                }
+            }
+
+            developmentPlaceholderCount > 0 -> {
+                LazyRow(
+                    horizontalArrangement =
+                        Arrangement.spacedBy(10.dp)
+                ) {
+                    items(developmentPlaceholderCount) {
+                        Surface(
+                            modifier = Modifier.size(116.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            color = CutTimeLightGrey
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Image,
+                                    contentDescription =
+                                        "Development gallery placeholder",
+                                    tint = CutTimeNavy,
+                                    modifier = Modifier.size(34.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            errorMessage != null -> {
+                Column {
+                    Text(
+                        text = errorMessage,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = onRetry,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = CutTimeNavy
+                        )
+                    ) {
+                        Text("Retry")
+                    }
+                }
+            }
+
+            else -> {
+                Text(
+                    text = "No gallery images yet.",
+                    color = CutTimeTextSecondary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GalleryImageDialog(
+    image: GalleryImage,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text =
+                    image.caption.ifBlank {
+                        "Gallery image"
+                    }
+            )
+        },
+        text = {
+            AsyncImage(
+                model = image.downloadUrl,
+                contentDescription =
+                    image.caption.ifBlank {
+                        "Barber gallery image"
+                    },
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(360.dp)
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = CutTimeNavy
+                )
+            ) {
+                Text("Close")
+            }
+        }
+    )
 }
 
 @Composable

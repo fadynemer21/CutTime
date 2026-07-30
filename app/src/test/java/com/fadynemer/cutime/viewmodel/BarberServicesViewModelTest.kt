@@ -2,6 +2,7 @@ package com.fadynemer.cutime.viewmodel
 
 import com.fadynemer.cutime.model.BarberAvailability
 import com.fadynemer.cutime.model.BarberService
+import com.fadynemer.cutime.model.AvailabilitySaveResult
 import com.fadynemer.cutime.model.ManagedBarberProfile
 import com.fadynemer.cutime.repository.AppointmentObservation
 import com.fadynemer.cutime.repository.BarberDataSource
@@ -84,7 +85,9 @@ class BarberServicesViewModelTest {
 
         override fun saveAvailability(
             availability: BarberAvailability,
-            onResult: (Result<Unit>) -> Unit
-        ) = onResult(Result.success(Unit))
+            onResult: (Result<AvailabilitySaveResult>) -> Unit
+        ) = onResult(
+            Result.success(AvailabilitySaveResult())
+        )
     }
 }

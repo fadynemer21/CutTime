@@ -3,6 +3,17 @@
 This document records completed autonomous development batches and the remaining
 roadmap. It is intentionally updated before new batch summaries are delivered.
 
+## Current completion estimate
+
+Estimated overall completion after the gallery and notification mega-batch:
+**90-93%**.
+
+The core product, cross-role lifecycle, real catalog, gallery, in-app
+notifications, push source, and local/server reminder architecture are now
+implemented. The remaining work is primarily emulator/device validation,
+production Firebase deployment, accessibility/offline hardening, release
+configuration, and submission assets.
+
 ## Completion estimate after barber-management batch
 
 Estimated overall completion: **58-62%**
@@ -253,3 +264,310 @@ Meaningful nonblank line accounting immediately before this results block:
 
 No Firebase deployment, dependency installation, emulator/device use, Git
 commit, push, or pull request was performed.
+
+## Gallery, notifications, and reminders mega-batch
+
+### Firebase Storage barber gallery
+
+- Added a real Firebase Storage and Firestore-backed gallery repository.
+- Added content selection through Android's system picker.
+- Added MIME type, size, caption, and image-count validation.
+- Added progress reporting for active uploads.
+- Added best-effort binary cleanup when metadata persistence fails.
+- Added caption editing, delete confirmation, and complete-order batch writes.
+- Added optimistic reordering with rollback on failure.
+- Added missing-object recovery so stale metadata can still be removed.
+- Added a barber gallery management screen under Profile.
+- Added Coil network image loading for management and customer views.
+- Replaced customer profile placeholders with real gallery images when present.
+- Preserved the clearly identified sample gallery only for development fallback
+  catalog entries.
+- Added full-size customer image previews without changing the established
+  profile layout.
+
+### Notification center and preferences
+
+- Added typed notification and preference domain models.
+- Added owner-scoped notification, settings, and device repositories.
+- Added customer and barber notification inbox routes.
+- Added unread badges on customer Home and Barber Dashboard.
+- Added Today, Yesterday, This week, and Earlier inbox grouping.
+- Added per-item read state, Mark all read, delete, retry, loading, error, and
+  empty states.
+- Added notification settings for master push, appointment updates, reminders,
+  and review prompts.
+- Each eligible appointment now schedules both required reminders: 2 hours and
+  30 minutes before its start time.
+- Added runtime `POST_NOTIFICATIONS` permission handling for Android 13+.
+- Added target-aware navigation into customer or barber appointment details.
+- Added payload fallback routing for FCM data messages.
+
+### FCM and device lifecycle
+
+- Added Firebase Messaging to the Android application.
+- Added a manifest-declared `FirebaseMessagingService`.
+- Added notification channels and a proper monochrome small icon.
+- Added foreground/data-message publishing with stable notification IDs.
+- Added FCM token hashing and per-user device registration.
+- Added token refresh handling.
+- Added authenticated launch-time token synchronization.
+- Added current-device unregistration before customer and barber logout so a
+  later account on the same phone cannot inherit the previous account's push
+  destination.
+- Added external intent route consumption after authenticated navigation is
+  ready.
+
+### Local appointment reminders
+
+- Added a pure reminder planner for eligibility, trigger time, message content,
+  and delay calculation.
+- Added WorkManager scheduling keyed by appointment ID.
+- Added independent work identities for the 2-hour and 30-minute reminders so
+  neither reminder replaces the other.
+- Added replacement when appointment time or preference changes.
+- Added cancellation of obsolete appointment reminder work.
+- Added preference-aware synchronization from the live upcoming appointment
+  list.
+- Added a Worker that publishes a routed appointment notification.
+
+### Trusted Cloud Functions source
+
+- Added a Node.js 22 TypeScript functions project.
+- Added retry-safe appointment-created, appointment-updated, and rating-created
+  Firestore triggers.
+- Added customer and barber booking confirmations.
+- Added cancellation, reschedule, completion, and review-request events.
+- Added Barber notifications for new customer ratings.
+- Added deterministic notification document IDs so trigger retries do not
+  duplicate in-app records or push sends.
+- Added per-user category and master push preference enforcement.
+- Added FCM multicast messages with appointment routes and channel metadata.
+- Added automatic cleanup of invalid/unregistered FCM tokens.
+- Added a 15-minute scheduled reminder scan bounded to appointments in the next
+  24 hours.
+- Added per-recipient reminder timing so customer and barber preferences can
+  differ.
+- Added pure TypeScript tests for content, transitions, routing, message
+  construction, retry IDs, preference categories, and reminder windows.
+
+### Firebase security and configuration
+
+- Added `storage.rules` with Barber-role ownership, path, MIME, size, and custom
+  metadata enforcement.
+- Denied client-side gallery object replacement and all unmatched Storage
+  paths.
+- Added Firestore gallery metadata create/update/delete validation.
+- Allowed notification clients to read, acknowledge, or delete only their own
+  records while denying client notification creation.
+- Added owner-only preference and device rules with strict field allowlists.
+- Added the scheduled reminder composite index.
+- Registered Storage and Functions in `firebase.json`.
+- Added a complete enablement, deployment, live-test, security, monitoring, and
+  troubleshooting guide in `GALLERY_NOTIFICATIONS_SETUP.md`.
+
+### Automated coverage added
+
+- Gallery format, byte limit, caption, count limit, and progress tests.
+- Public gallery observation, selection, refresh, retry, and listener tests.
+- Gallery management upload, caption, delete, reordering, boundary, success,
+  failure, optimistic update, and rollback tests.
+- Notification routing and FCM payload routing tests.
+- Notification time display and grouping tests.
+- Stable device-token hashing tests.
+- Notification center read, mark-all, delete, retry, concurrency, and error
+  tests.
+- Notification preference draft, incoming-update, validation, discard, save,
+  and retry tests.
+- Unread badge snapshot tests.
+- Local reminder eligibility, timing, delay, and message-format tests.
+- Cloud Functions pure lifecycle and delivery-helper tests (source added; Node
+  test execution is pending because Node/npm is not installed locally).
+
+### Remaining roadmap after this batch
+
+- Deploy and live-test Firestore rules, indexes, Storage rules, and Functions.
+- Run Firestore/Storage rules emulator tests after Firebase CLI is available.
+- Run Compose UI/instrumentation tests on an emulator or physical device.
+- Test image picking across Android API levels and common gallery providers.
+- Test FCM delivery in foreground, background, terminated, token refresh, and
+  multi-account logout/login scenarios.
+- Test WorkManager timing under Doze and vendor-specific battery management.
+- Perform TalkBack, large-font, contrast, touch-target, compact-phone, tablet,
+  offline, and reconnect audits.
+- Extract remaining UI strings and prepare localization.
+- Add release signing, shrinking review, privacy documentation, screenshots,
+  demo video, polished README, and final submission package.
+
+No Firebase deployment, Git commit, push, or pull request was performed by this
+batch. Final verification and line accounting for this batch are recorded after
+the last Lint and APK run.
+
+## Gallery/notification mega-batch final verification
+
+Estimated overall project completion after this batch: **90-93%**.
+
+Locally verified on 30 July 2026:
+
+- Debug Kotlin compilation: passed.
+- JVM unit tests: **244 passed**, 0 failures, 0 errors, 0 skipped.
+- Android Lint: passed with **0 errors** and 22 non-blocking dependency,
+  toolchain, KTX, icon-location, and unused/legacy resource suggestions.
+- Debug APK assembly: passed.
+- APK output: `app/build/outputs/apk/debug/app-debug.apk`.
+- APK size: 29,113,039 bytes.
+- Firebase JSON configuration files: parsed successfully.
+- Git whitespace/error check: passed.
+- Firestore and Storage rule files: locally reviewed and structurally checked.
+- Cloud Functions package and TypeScript configuration JSON: parsed
+  successfully.
+- Cloud Functions TypeScript compilation/tests: not run because Node.js and npm
+  are not installed on this machine. The source and tests are complete, and the
+  exact later commands are documented in `GALLERY_NOTIFICATIONS_SETUP.md`.
+- Firebase CLI rules compilation and all deployments: not run. Nothing was
+  changed in the live Firebase project.
+
+Meaningful nonblank line accounting after the final Android verification:
+
+- Production Kotlin: 15,035 lines.
+- JVM test Kotlin: 4,080 lines.
+- Firebase rules, indexes, Functions, and configuration: 2,012 lines.
+- Progress and Firebase documentation: 796 lines.
+- Counted scope total: 21,923 lines.
+- Recorded pre-batch checkpoint: 14,188 lines.
+- This batch's increase: **7,735 meaningful nonblank lines**.
+
+The count excludes generated build output, downloaded dependencies, APK
+contents, blank lines, IDE files, and duplicated generated code. No filler was
+added to reach a line target.
+
+## Dual-reminder and real-barber clarification follow-up
+
+- Replaced the selectable single reminder with a fixed pair: 2 hours and
+  30 minutes before each eligible appointment.
+- Gave each local WorkManager request a unique appointment-and-lead identity so
+  both reminders remain scheduled independently.
+- Gave each server reminder event a lead-specific deterministic identity so
+  scheduler scans and retries cannot merge or duplicate the pair.
+- Updated notification preferences, Firestore settings schema, rules, Cloud
+  Functions source, Android UI, tests, and setup documentation together.
+- Clarified throughout the customer UI that bundled generic barber shops are
+  non-bookable development previews.
+- Clarified that a bookable shop is created only when a real Barber account
+  saves its profile, at least one service, and availability.
+
+Verification after this follow-up:
+
+- Debug Kotlin compilation: passed.
+- JVM unit tests: **246 passed**, 0 failures, 0 errors, 0 skipped.
+- Android Lint: passed with **0 errors** and 22 non-blocking warnings.
+- Debug APK assembly: passed.
+- APK output: `app/build/outputs/apk/debug/app-debug.apk`.
+- Firebase and Functions JSON configuration parsing: passed.
+- Git whitespace/error check: passed.
+- No Firebase deployment, commit, or push was performed.
+
+## Real Barber shop publication readiness
+
+- Verified the complete live publication path from Barber registration through
+  customer booking.
+- Added a real-time Shop Setup card to the Barber Dashboard.
+- The card checks the same three requirements used by Customer Home:
+  - a valid public shop name and description
+  - at least one valid service
+  - a persisted seven-day availability schedule with an open working day
+- Added direct setup actions for Profile, Services, and Hours.
+- Added a green `Your shop is live` state when the shop qualifies for Customer
+  Home and appointment booking.
+- Kept gallery images optional; a Barber can publish and accept bookings before
+  uploading gallery content.
+- Hardened customer catalog aggregation so malformed legacy services,
+  incomplete availability, all-closed schedules, and incomplete profiles do
+  not appear as bookable shops.
+- Added pure readiness validation and ViewModel listener/retry tests.
+- Added clear customer-facing explanations that generic bundled shops are
+  development previews rather than registered Barber businesses.
+
+Publication remains automatic. Adding or changing a service or availability
+touches the Barber profile timestamp, causing the Customer Home listener to
+re-evaluate the complete shop without a manual publish button.
+
+Verification after adding publication readiness:
+
+- Debug Kotlin compilation: passed.
+- JVM unit tests: **263 passed**, 0 failures, 0 errors, 0 skipped.
+- Android Lint: passed with **0 errors** and 22 non-blocking warnings.
+- Debug APK assembly: passed.
+- Git whitespace/error check: passed.
+- No Firebase deployment, commit, or push was performed.
+
+## Live-test lifecycle and booking UX corrections
+
+- Changed appointment creation to use the authenticated customer's Firestore
+  `fullName` as the canonical barber-facing name instead of falling back to an
+  email address.
+- Added owner-scoped repair of legacy appointment records when a customer opens
+  My Appointments, so existing bookings can adopt the current profile name.
+- Removed customer email from the barber appointment-detail presentation.
+- Added Firestore rule validation linking every new or repaired appointment
+  name to the owning customer's profile.
+- Changed blocked-date saves so the holiday is persisted first, preventing new
+  bookings and reschedules, then all upcoming appointments on blocked dates are
+  cancelled automatically.
+- Released every cancelled appointment's booking-slot locks so those records do
+  not remain falsely occupied.
+- Split holiday cancellations into rule-safe batches and made retries heal a
+  partially completed cancellation pass.
+- Added a clear availability success message with the number of appointments
+  cancelled by the holiday.
+- Added transaction and Firestore-rule checks preventing booking or
+  rescheduling onto a newly blocked date.
+- Removed the premature booking summary from the service/date/time form. The
+  complete summary now appears only after all three choices are valid and the
+  customer presses `Review Booking`.
+- Cleared a previously selected time when the service changes because service
+  duration changes which starts are valid.
+- Added customer-name, holiday-policy, availability-result, and blocked-booking
+  unit coverage.
+
+Live Firebase verification of these corrections requires republishing the
+updated `firestore.rules`, installing the new debug build, and repeating the
+customer/barber flow. No Firebase deployment, commit, or push was performed.
+
+Local verification after these corrections:
+
+- Debug Kotlin compilation: passed.
+- JVM unit tests: **274 passed**, 0 failures, 0 errors, 0 skipped.
+- Android Lint: passed with **0 errors** and 22 non-blocking warnings.
+- Debug APK assembly: passed.
+- APK output: `app/build/outputs/apk/debug/app-debug.apk`.
+- Git whitespace/error check: passed; only existing Windows line-ending notices
+  were reported.
+
+## Cancelled appointment history removal
+
+- Added a long-press action to cancelled customer appointment cards.
+- Added a confirmation explaining that deletion removes the appointment only
+  from the customer's history and preserves the barber's shared record.
+- Implemented owner-scoped soft deletion through `hiddenFromCustomer` rather
+  than destroying appointment audit data.
+- Restricted history removal to the authenticated customer who owns an already
+  cancelled appointment.
+- Filtered hidden records from subsequent customer appointment snapshots
+  without requiring another composite Firestore index.
+- Added Firestore rules that allow a one-way hide transition while continuing
+  to deny appointment document deletion.
+- Added ViewModel and domain-policy tests for successful removal, ownership,
+  appointment status, and repeat-removal protection.
+
+Live verification requires republishing `firestore.rules` and installing the
+new build. No Firebase deployment, commit, or push was performed.
+
+Verification after cancelled-history removal:
+
+- Debug Kotlin compilation: passed.
+- JVM unit tests: **278 passed**, 0 failures, 0 errors, 0 skipped.
+- Android Lint: passed with **0 errors** and 22 non-blocking warnings.
+- Debug APK assembly: passed.
+- APK output: `app/build/outputs/apk/debug/app-debug.apk`.
+- Git whitespace/error check: passed; only existing Windows line-ending notices
+  were reported.

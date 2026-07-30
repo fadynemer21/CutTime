@@ -15,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ContentCut
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
@@ -267,16 +266,6 @@ private fun AppointmentDetailContent(
                             else -> "Upcoming"
                         }
                 )
-                if (
-                    isBarberView &&
-                    appointment.customerEmail.isNotBlank()
-                ) {
-                    DetailRow(
-                        icon = Icons.Default.Email,
-                        label = "Customer email",
-                        value = appointment.customerEmail
-                    )
-                }
                 DetailRow(
                     icon = Icons.Default.ContentCut,
                     label = "Price",

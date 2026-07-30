@@ -343,10 +343,20 @@ class BarberAvailabilityViewModel(
             uiState.availability
         ) { result ->
             result
-                .onSuccess {
+                .onSuccess { saveResult ->
+                    val cancelledCount =
+                        saveResult.cancelledAppointmentCount
                     uiState = uiState.copy(
                         isSaving = false,
-                        successMessage = "Availability saved."
+                        successMessage =
+                            when (cancelledCount) {
+                                0 -> "Availability saved."
+                                1 ->
+                                    "Availability saved. 1 appointment was cancelled."
+
+                                else ->
+                                    "Availability saved. $cancelledCount appointments were cancelled."
+                            }
                     )
                 }
                 .onFailure { error ->

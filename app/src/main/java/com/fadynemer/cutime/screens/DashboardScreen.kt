@@ -17,7 +17,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -31,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -46,21 +49,31 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.fadynemer.cutime.components.BarberBottomBar
 import com.fadynemer.cutime.components.BarberDestination
+import com.fadynemer.cutime.components.NotificationIconButton
 import com.fadynemer.cutime.model.Appointment
 import com.fadynemer.cutime.navigation.AppRoute
+import com.fadynemer.cutime.notifications.NotificationRegistrationManager
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
+import com.fadynemer.cutime.ui.theme.CutTimeSuccess
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
 import com.fadynemer.cutime.util.AppointmentDateTime
 import com.fadynemer.cutime.viewmodel.BarberDashboardUiState
 import com.fadynemer.cutime.viewmodel.BarberDashboardViewModel
+import com.fadynemer.cutime.viewmodel.BarberShopReadinessUiState
+import com.fadynemer.cutime.viewmodel.BarberShopReadinessViewModel
 import com.fadynemer.cutime.viewmodel.SessionViewModel
+import com.fadynemer.cutime.viewmodel.NotificationBadgeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     navController: NavController,
     sessionViewModel: SessionViewModel = viewModel(),
-    dashboardViewModel: BarberDashboardViewModel = viewModel()
+    dashboardViewModel: BarberDashboardViewModel = viewModel(),
+    notificationBadgeViewModel:
+        NotificationBadgeViewModel = viewModel(),
+    shopReadinessViewModel:
+        BarberShopReadinessViewModel = viewModel()
 ) {
     CompositionLocalProvider(
         LocalLayoutDirection provides LayoutDirection.Ltr
@@ -78,19 +91,33 @@ fun DashboardScreen(
                         )
                     },
                     actions = {
+                        NotificationIconButton(
+                            unreadCount =
+                                notificationBadgeViewModel.uiState
+                                    .unreadCount,
+                            onClick = {
+                                navController.navigate(
+                                    AppRoute.Notifications.create(true)
+                                )
+                            }
+                        )
                         IconButton(
                             onClick = {
-                                sessionViewModel.logout()
-                                navController.navigate(
-                                    AppRoute.Welcome.pattern
-                                ) {
-                                    popUpTo(
-                                        AppRoute.BarberDashboard.pattern
-                                    ) {
-                                        inclusive = true
+                                NotificationRegistrationManager
+                                    .unregisterCurrentDevice {
+                                        sessionViewModel.logout()
+                                        navController.navigate(
+                                            AppRoute.Welcome.pattern
+                                        ) {
+                                            popUpTo(
+                                                AppRoute.BarberDashboard
+                                                    .pattern
+                                            ) {
+                                                inclusive = true
+                                            }
+                                            launchSingleTop = true
+                                        }
                                     }
-                                    launchSingleTop = true
-                                }
                             }
                         ) {
                             Icon(
@@ -118,7 +145,26 @@ fun DashboardScreen(
         ) { innerPadding ->
             DashboardContent(
                 uiState = dashboardViewModel.uiState,
+                readinessUiState =
+                    shopReadinessViewModel.uiState,
                 onRetry = dashboardViewModel::retry,
+                onReadinessRetry =
+                    shopReadinessViewModel::retry,
+                onProfileSetup = {
+                    navController.navigate(
+                        AppRoute.BarberManageProfile.pattern
+                    )
+                },
+                onServicesSetup = {
+                    navController.navigate(
+                        AppRoute.BarberServices.pattern
+                    )
+                },
+                onAvailabilitySetup = {
+                    navController.navigate(
+                        AppRoute.BarberAvailability.pattern
+                    )
+                },
                 onComplete =
                     dashboardViewModel::completeAppointment,
                 onCancel =
@@ -141,7 +187,12 @@ fun DashboardScreen(
 @Composable
 private fun DashboardContent(
     uiState: BarberDashboardUiState,
+    readinessUiState: BarberShopReadinessUiState,
     onRetry: () -> Unit,
+    onReadinessRetry: () -> Unit,
+    onProfileSetup: () -> Unit,
+    onServicesSetup: () -> Unit,
+    onAvailabilitySetup: () -> Unit,
     onComplete: (String) -> Unit,
     onCancel: (String) -> Unit,
     onAppointmentSelected: (String) -> Unit,
@@ -193,6 +244,17 @@ private fun DashboardContent(
                 contentPadding = PaddingValues(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                item {
+                    ShopReadinessCard(
+                        uiState = readinessUiState,
+                        onRetry = onReadinessRetry,
+                        onProfileSetup = onProfileSetup,
+                        onServicesSetup = onServicesSetup,
+                        onAvailabilitySetup =
+                            onAvailabilitySetup
+                    )
+                }
+
                 item {
                     DashboardSummary(
                         todayCount = uiState.today.size,
@@ -250,6 +312,184 @@ private fun DashboardContent(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ShopReadinessCard(
+    uiState: BarberShopReadinessUiState,
+    onRetry: () -> Unit,
+    onProfileSetup: () -> Unit,
+    onServicesSetup: () -> Unit,
+    onAvailabilitySetup: () -> Unit
+) {
+    val readiness = uiState.readiness
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor =
+                if (readiness.isBookable) {
+                    CutTimeSuccess.copy(alpha = 0.10f)
+                } else {
+                    CutTimeNavy.copy(alpha = 0.06f)
+                }
+        )
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            when {
+                uiState.isLoading -> {
+                    Row(
+                        verticalAlignment =
+                            Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            color = CutTimeNavy,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.size(10.dp))
+                        Text(
+                            text = "Checking shop setup…",
+                            color = CutTimeNavy,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                uiState.errorMessage != null -> {
+                    Text(
+                        text = "Shop setup could not be checked",
+                        color = CutTimeNavy,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = uiState.errorMessage,
+                        color = CutTimeTextSecondary,
+                        fontSize = 13.sp
+                    )
+                    TextButton(onClick = onRetry) {
+                        Text("Try Again")
+                    }
+                }
+
+                readiness.isBookable -> {
+                    Row(
+                        verticalAlignment =
+                            Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector =
+                                Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = CutTimeSuccess,
+                            modifier = Modifier.size(30.dp)
+                        )
+                        Spacer(modifier = Modifier.size(10.dp))
+                        Column {
+                            Text(
+                                text = "Your shop is live",
+                                color = CutTimeNavy,
+                                fontWeight =
+                                    FontWeight.SemiBold,
+                                fontSize = 18.sp
+                            )
+                            Text(
+                                text =
+                                    "Customers can find it on Home and book available appointments.",
+                                color = CutTimeTextSecondary,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+
+                else -> {
+                    Text(
+                        text = "Finish setting up your shop",
+                        color = CutTimeNavy,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 18.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text =
+                            "${readiness.completedStepCount} of ${readiness.totalStepCount} required steps complete",
+                        color = CutTimeTextSecondary,
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    ReadinessStep(
+                        label = "Public shop profile",
+                        complete = readiness.profileComplete,
+                        actionLabel = "Edit",
+                        onAction = onProfileSetup
+                    )
+                    ReadinessStep(
+                        label = "At least one service",
+                        complete = readiness.servicesComplete,
+                        actionLabel = "Services",
+                        onAction = onServicesSetup
+                    )
+                    ReadinessStep(
+                        label = "Saved hours with an open day",
+                        complete =
+                            readiness.availabilityComplete,
+                        actionLabel = "Hours",
+                        onAction = onAvailabilitySetup
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text =
+                            "Your shop appears to customers automatically when all three steps are complete.",
+                        color = CutTimeTextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReadinessStep(
+    label: String,
+    complete: Boolean,
+    actionLabel: String,
+    onAction: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector =
+                if (complete) {
+                    Icons.Default.CheckCircle
+                } else {
+                    Icons.Default.RadioButtonUnchecked
+                },
+            contentDescription =
+                if (complete) "Complete" else "Incomplete",
+            tint =
+                if (complete) {
+                    CutTimeSuccess
+                } else {
+                    CutTimeTextSecondary
+                },
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.size(10.dp))
+        Text(
+            text = label,
+            color = CutTimeNavy,
+            modifier = Modifier.weight(1f),
+            fontSize = 14.sp
+        )
+        TextButton(onClick = onAction) {
+            Text(actionLabel)
         }
     }
 }
