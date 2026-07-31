@@ -1,5 +1,7 @@
 package com.fadynemer.cutime.screens
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -79,7 +81,7 @@ fun SplashScreen(
             painter = painterResource(
                 id = R.drawable.cutime_logo
             ),
-            contentDescription = "CutTime Logo",
+            contentDescription = stringResource(R.string.content_description_cutime_logo),
             modifier = Modifier.size(600.dp)
         )
     }

@@ -10,6 +10,9 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import com.fadynemer.cutime.R
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeRed
 
@@ -26,6 +29,10 @@ fun CustomerBottomBar(
     onAppointmentsSelected: () -> Unit,
     onProfileSelected: () -> Unit
 ) {
+    val homeLabel = stringResource(R.string.nav_home)
+    val appointmentsLabel =
+        stringResource(R.string.nav_appointments)
+    val profileLabel = stringResource(R.string.nav_profile)
     NavigationBar {
         NavigationBarItem(
             selected =
@@ -34,11 +41,11 @@ fun CustomerBottomBar(
             icon = {
                 Icon(
                     imageVector = Icons.Default.Home,
-                    contentDescription = "Home"
+                    contentDescription = homeLabel
                 )
             },
             label = {
-                Text("Home")
+                Text(homeLabel, maxLines = 1)
             },
             colors = customerNavigationColors()
         )
@@ -51,11 +58,15 @@ fun CustomerBottomBar(
             icon = {
                 Icon(
                     imageVector = Icons.Default.CalendarMonth,
-                    contentDescription = "Appointments"
+                    contentDescription = appointmentsLabel
                 )
             },
             label = {
-                Text("Appointments")
+                Text(
+                    appointmentsLabel,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             },
             colors = customerNavigationColors()
         )
@@ -67,11 +78,11 @@ fun CustomerBottomBar(
             icon = {
                 Icon(
                     imageVector = Icons.Default.Person,
-                    contentDescription = "Profile"
+                    contentDescription = profileLabel
                 )
             },
             label = {
-                Text("Profile")
+                Text(profileLabel, maxLines = 1)
             },
             colors = customerNavigationColors()
         )

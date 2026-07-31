@@ -1,5 +1,9 @@
 package com.fadynemer.cutime.screens
 
+import com.fadynemer.cutime.R
+
+import androidx.compose.ui.res.stringResource
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -84,7 +88,7 @@ fun NotificationSettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Notification Settings",
+                        text = stringResource(R.string.notification_settings_title),
                         color = CutTimeNavy,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -93,7 +97,7 @@ fun NotificationSettingsScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.action_back),
                             tint = CutTimeNavy
                         )
                     }
@@ -240,7 +244,7 @@ fun NotificationSettingsScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Text("Save Settings")
+                        Text(stringResource(R.string.notifications_save_settings))
                     }
                 }
 
@@ -252,7 +256,7 @@ fun NotificationSettingsScreen(
                             .fillMaxWidth()
                             .height(50.dp)
                     ) {
-                        Text("Discard Changes")
+                        Text(stringResource(R.string.notifications_discard_changes))
                     }
                 }
             }
@@ -362,14 +366,14 @@ private fun ReminderScheduleCard() {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Reminder schedule",
+                text = stringResource(R.string.notification_reminder_schedule),
                 color = CutTimeNavy,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.size(8.dp))
             Text(
                 text =
-                    "You will receive two reminders for each upcoming appointment:",
+                    stringResource(R.string.notification_reminder_intro),
                 color = CutTimeTextSecondary,
                 fontSize = 13.sp
             )

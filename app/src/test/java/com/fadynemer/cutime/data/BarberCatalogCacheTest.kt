@@ -8,6 +8,18 @@ import org.junit.Test
 
 class BarberCatalogCacheTest {
     @Test
+    fun productionLookup_doesNotReturnDevelopmentPreview() {
+        BarberCatalogCache.replace(emptyList())
+
+        val barber = BarberCatalogCache.find(
+            barberId = "barber_1",
+            includeDevelopmentFallback = false
+        )
+
+        assertEquals(null, barber)
+    }
+
+    @Test
     fun missingCachedBarber_usesMarkedDevelopmentPreview() {
         BarberCatalogCache.replace(emptyList())
 

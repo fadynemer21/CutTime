@@ -1,5 +1,7 @@
 package com.fadynemer.cutime.screens
 
+import androidx.compose.ui.res.stringResource
+
 import android.util.Patterns
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -9,7 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -147,8 +149,9 @@ fun RegisterScreen(
                     }
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
+                            imageVector =
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.action_back),
                         tint = CutTimeNavy
                     )
                 }
@@ -158,12 +161,12 @@ fun RegisterScreen(
                 painter = painterResource(
                     id = R.drawable.cutime_logo
                 ),
-                contentDescription = "CuTime Logo",
+                contentDescription = stringResource(R.string.content_description_cutime_logo),
                 modifier = Modifier.size(100.dp)
             )
 
             Text(
-                text = "Create Account",
+                text = stringResource(R.string.register_action),
                 fontSize = 28.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = CutTimeNavy
@@ -172,7 +175,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Join CutTime and book your next appointment",
+                text = stringResource(R.string.register_subtitle),
                 fontSize = 14.sp,
                 color = CutTimeTextSecondary,
                 textAlign = TextAlign.Center,
@@ -187,16 +190,16 @@ fun RegisterScreen(
                     fullName = it
                 },
                 label = {
-                    Text("Full Name")
+                    Text(stringResource(R.string.field_full_name))
                 },
                 placeholder = {
-                    Text("Enter your full name")
+                    Text(stringResource(R.string.field_full_name_hint))
                 },
                 singleLine = true,
                 isError = fullNameError,
                 supportingText = {
                     if (fullNameError) {
-                        Text("Full name is required.")
+                        Text(stringResource(R.string.field_full_name_required))
                     }
                 },
                 shape = RoundedCornerShape(14.dp),
@@ -211,16 +214,16 @@ fun RegisterScreen(
                     email = it
                 },
                 label = {
-                    Text("Email")
+                    Text(stringResource(R.string.field_email))
                 },
                 placeholder = {
-                    Text("Enter your email")
+                    Text(stringResource(R.string.field_email_hint))
                 },
                 singleLine = true,
                 isError = emailError,
                 supportingText = {
                     if (emailError) {
-                        Text("Enter a valid email address.")
+                        Text(stringResource(R.string.field_email_invalid))
                     }
                 },
                 keyboardOptions = KeyboardOptions(
@@ -238,10 +241,10 @@ fun RegisterScreen(
                     password = it
                 },
                 label = {
-                    Text("Password")
+                    Text(stringResource(R.string.field_password))
                 },
                 placeholder = {
-                    Text("Create a password")
+                    Text(stringResource(R.string.field_password_create_hint))
                 },
                 singleLine = true,
                 isError = passwordError,
@@ -291,7 +294,7 @@ fun RegisterScreen(
                         )
                     } else {
                         Text(
-                            text = "At least 8 characters, 1 uppercase letter and 1 number."
+                            text = stringResource(R.string.register_password_requirements)
                         )
                     }
                 },
@@ -310,10 +313,10 @@ fun RegisterScreen(
                     confirmPassword = it
                 },
                 label = {
-                    Text("Confirm Password")
+                    Text(stringResource(R.string.field_confirm_password))
                 },
                 placeholder = {
-                    Text("Enter your password again")
+                    Text(stringResource(R.string.field_confirm_password_hint))
                 },
                 singleLine = true,
                 isError = confirmPasswordError,
@@ -367,7 +370,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Account Type",
+                text = stringResource(R.string.register_account_type),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color = CutTimeNavy,
@@ -394,7 +397,7 @@ fun RegisterScreen(
                             containerColor = CutTimeNavy
                         )
                     ) {
-                        Text("Customer")
+                        Text(stringResource(R.string.role_customer))
                     }
                 } else {
                     OutlinedButton(
@@ -407,7 +410,7 @@ fun RegisterScreen(
                             .height(48.dp),
                         shape = RoundedCornerShape(14.dp)
                     ) {
-                        Text("Customer")
+                        Text(stringResource(R.string.role_customer))
                     }
                 }
 
@@ -425,7 +428,7 @@ fun RegisterScreen(
                             containerColor = CutTimeNavy
                         )
                     ) {
-                        Text("Barber")
+                        Text(stringResource(R.string.role_barber))
                     }
                 } else {
                     OutlinedButton(
@@ -438,7 +441,7 @@ fun RegisterScreen(
                             .height(48.dp),
                         shape = RoundedCornerShape(14.dp)
                     ) {
-                        Text("Barber")
+                        Text(stringResource(R.string.role_barber))
                     }
                 }
             }
@@ -447,7 +450,7 @@ fun RegisterScreen(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Please select an account type.",
+                    text = stringResource(R.string.register_select_account_type),
                     color = MaterialTheme.colorScheme.error,
                     fontSize = 12.sp,
                     modifier = Modifier.fillMaxWidth()
@@ -472,12 +475,13 @@ fun RegisterScreen(
                 onClick = {
                     showErrors = true
 
-                    if (formIsValid) {
+                    val accountType = selectedAccountType
+                    if (formIsValid && accountType != null) {
                         registerViewModel.registerUser(
                             fullName = fullName,
                             email = email,
                             password = password,
-                            role = selectedAccountType!!.name
+                            role = accountType.name
                         )
                     }
                 },
@@ -498,7 +502,7 @@ fun RegisterScreen(
                     )
                 } else {
                     Text(
-                        text = "Create Account",
+                        text = stringResource(R.string.register_action),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -513,7 +517,7 @@ fun RegisterScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Already have an account?",
+                    text = stringResource(R.string.register_existing_account),
                     color = CutTimeTextSecondary,
                     fontSize = 13.sp,
                     maxLines = 1
@@ -522,7 +526,7 @@ fun RegisterScreen(
                 Spacer(modifier = Modifier.width(6.dp))
 
                 Text(
-                    text = "Login",
+                    text = stringResource(R.string.login_action),
                     color = CutTimeNavy,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,

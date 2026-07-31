@@ -1,15 +1,18 @@
 package com.fadynemer.cutime.repository
 
+import com.fadynemer.cutime.BuildConfig
 import com.fadynemer.cutime.data.BarberCatalogCache
 import com.fadynemer.cutime.data.SampleBarberData
 import com.fadynemer.cutime.model.BarberCatalog
 import com.fadynemer.cutime.model.BarberAvailability
+import com.fadynemer.cutime.model.BarberAvailabilityDocumentCodec
 import com.fadynemer.cutime.model.BarberService
 import com.fadynemer.cutime.model.BarberShop
 import com.fadynemer.cutime.model.BarberShopReadinessEvaluator
 import com.fadynemer.cutime.model.CatalogSource
 import com.fadynemer.cutime.model.DayAvailability
 import com.fadynemer.cutime.model.OpeningHours
+import com.fadynemer.cutime.model.effectiveWorkingPeriods
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import java.time.DayOfWeek
@@ -38,7 +41,9 @@ interface BarberCatalogDataSource {
 
 class BarberCatalogRepository(
     private val firestore: FirebaseFirestore =
-        FirebaseFirestore.getInstance()
+        FirebaseFirestore.getInstance(),
+    private val includeDevelopmentFallback: Boolean =
+        BuildConfig.ENABLE_DEVELOPMENT_CATALOG
 ) : BarberCatalogDataSource {
 
     override fun observeCatalog(
@@ -49,20 +54,23 @@ class BarberCatalogRepository(
                 .collection(PROFILES_COLLECTION)
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {
-                        deliverFallback(onResult)
+                        deliverFailureOrFallback(
+                            error = error,
+                            onResult = onResult
+                        )
                         return@addSnapshotListener
                     }
 
                     val profiles = snapshot?.documents.orEmpty()
 
                     if (profiles.isEmpty()) {
-                        deliverFallback(onResult)
+                        deliverEmptyOrFallback(onResult)
                     } else {
                         aggregateProfiles(profiles) { result ->
                             result
                                 .onSuccess { barbers ->
                                     if (barbers.isEmpty()) {
-                                        deliverFallback(onResult)
+                                        deliverEmptyOrFallback(onResult)
                                     } else {
                                         BarberCatalogCache.replace(barbers)
                                         onResult(
@@ -76,8 +84,11 @@ class BarberCatalogRepository(
                                         )
                                     }
                                 }
-                                .onFailure {
-                                    deliverFallback(onResult)
+                                .onFailure { aggregationError ->
+                                    deliverFailureOrFallback(
+                                        error = aggregationError,
+                                        onResult = onResult
+                                    )
                                 }
                         }
                     }
@@ -90,7 +101,10 @@ class BarberCatalogRepository(
         barberId: String,
         onResult: (Result<BarberShop?>) -> Unit
     ) {
-        BarberCatalogCache.find(barberId)?.let { cached ->
+        BarberCatalogCache.find(
+            barberId = barberId,
+            includeDevelopmentFallback = includeDevelopmentFallback
+        )?.let { cached ->
             onResult(Result.success(cached))
             return
         }
@@ -206,8 +220,9 @@ class BarberCatalogRepository(
             val serviceList = services.orEmpty()
             val barberAvailability = availability
 
-            if (firstError != null) {
-                onResult(Result.failure(firstError!!))
+            val aggregationError = firstError
+            if (aggregationError != null) {
+                onResult(Result.failure(aggregationError))
                 return
             }
 
@@ -240,7 +255,10 @@ class BarberCatalogRepository(
                         day = day.day,
                         hours =
                             if (day.isOpen) {
-                                "${day.startTime} - ${day.endTime}"
+                                day.effectiveWorkingPeriods()
+                                    .joinToString(", ") { period ->
+                                        "${period.startTime} - ${period.endTime}"
+                                    }
                             } else {
                                 "Closed"
                             }
@@ -355,31 +373,9 @@ class BarberCatalogRepository(
             )
         if (!saved) return null
 
-        val days = rawDays
-            ?.mapNotNull { raw ->
-                val map = raw as? Map<*, *>
-                    ?: return@mapNotNull null
-                DayAvailability(
-                    day =
-                        map["day"] as? String
-                            ?: return@mapNotNull null,
-                    isOpen =
-                        map["isOpen"] as? Boolean ?: false,
-                    startTime =
-                        map["startTime"] as? String ?: "09:00",
-                    endTime =
-                        map["endTime"] as? String ?: "17:00"
-                )
-            }
-            .orEmpty()
-        val blockedDates =
-            (document.get("blockedDates") as? List<*>)
-                ?.filterIsInstance<String>()
-                .orEmpty()
-
-        return BarberAvailability(
-            days = days,
-            blockedDates = blockedDates
+        return BarberAvailabilityDocumentCodec.decode(
+            rawDays = rawDays,
+            rawBlockedDates = document.get("blockedDates")
         )
     }
 
@@ -407,7 +403,11 @@ class BarberCatalogRepository(
                         1 -> "Tomorrow"
                         else -> dayName
                     }
-                return "$prefix at ${day.startTime}"
+                val firstStart =
+                    day.effectiveWorkingPeriods()
+                        .firstOrNull()?.startTime
+                        ?: day.startTime
+                return "$prefix at $firstStart"
             }
         }
 
@@ -419,23 +419,22 @@ class BarberCatalogRepository(
     ): List<String> {
         val openDay = days.firstOrNull { it.isOpen }
             ?: return emptyList()
-        val start =
-            runCatching {
-                LocalTime.parse(openDay.startTime)
-            }.getOrNull() ?: return emptyList()
-        val end =
-            runCatching {
-                LocalTime.parse(openDay.endTime)
-            }.getOrNull() ?: return emptyList()
         val result = mutableListOf<String>()
-        var cursor = start
-
-        while (cursor.isBefore(end) && result.size < 12) {
-            result += cursor.toString()
-            cursor = cursor.plusMinutes(30)
+        openDay.effectiveWorkingPeriods().forEach { period ->
+            val start = runCatching {
+                LocalTime.parse(period.startTime)
+            }.getOrNull() ?: return@forEach
+            val end = runCatching {
+                LocalTime.parse(period.endTime)
+            }.getOrNull() ?: return@forEach
+            var cursor = start
+            while (cursor.isBefore(end) && result.size < 12) {
+                result += cursor.toString()
+                cursor = cursor.plusMinutes(30)
+            }
         }
 
-        return result
+        return result.distinct().sorted()
     }
 
     private fun deliverFallback(
@@ -454,6 +453,35 @@ class BarberCatalogRepository(
                 )
             )
         )
+    }
+
+    private fun deliverEmptyOrFallback(
+        onResult: (Result<BarberCatalog>) -> Unit
+    ) {
+        if (includeDevelopmentFallback) {
+            deliverFallback(onResult)
+            return
+        }
+        BarberCatalogCache.replace(emptyList())
+        onResult(
+            Result.success(
+                BarberCatalog(
+                    barbers = emptyList(),
+                    source = CatalogSource.FIRESTORE
+                )
+            )
+        )
+    }
+
+    private fun deliverFailureOrFallback(
+        error: Throwable,
+        onResult: (Result<BarberCatalog>) -> Unit
+    ) {
+        if (includeDevelopmentFallback) {
+            deliverFallback(onResult)
+        } else {
+            onResult(Result.failure(error))
+        }
     }
 
     private companion object {

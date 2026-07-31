@@ -1,6 +1,6 @@
 package com.fadynemer.cutime.repository
 
-import android.net.Uri
+import androidx.core.net.toUri
 import com.fadynemer.cutime.model.GalleryImage
 import com.fadynemer.cutime.model.GalleryUploadProgress
 import com.fadynemer.cutime.model.GalleryUploadRequest
@@ -158,7 +158,7 @@ class GalleryRepository(
                 .build()
         val uploadTask =
             storageReference.putFile(
-                Uri.parse(request.localUri),
+                request.localUri.toUri(),
                 metadata
             )
 

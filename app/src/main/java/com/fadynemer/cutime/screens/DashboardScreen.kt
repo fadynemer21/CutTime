@@ -1,5 +1,10 @@
 package com.fadynemer.cutime.screens
 
+import com.fadynemer.cutime.R
+
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -85,7 +90,7 @@ fun DashboardScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Barber Dashboard",
+                            text = stringResource(R.string.dashboard_title),
                             color = CutTimeNavy,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -123,7 +128,7 @@ fun DashboardScreen(
                             Icon(
                                 imageVector =
                                     Icons.AutoMirrored.Filled.Logout,
-                                contentDescription = "Logout",
+                                contentDescription = stringResource(R.string.content_description_logout),
                                 tint = CutTimeNavy
                             )
                         }
@@ -215,7 +220,7 @@ private fun DashboardContent(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Could not load appointments",
+                    text = stringResource(R.string.appointments_load_failed),
                     color = CutTimeNavy,
                     fontSize = 21.sp,
                     fontWeight = FontWeight.SemiBold
@@ -233,7 +238,7 @@ private fun DashboardContent(
                         containerColor = CutTimeNavy
                     )
                 ) {
-                    Text("Try Again")
+                    Text(stringResource(R.string.action_try_again))
                 }
             }
         }
@@ -351,7 +356,7 @@ private fun ShopReadinessCard(
                         )
                         Spacer(modifier = Modifier.size(10.dp))
                         Text(
-                            text = "Checking shop setup…",
+                            text = stringResource(R.string.dashboard_setup_checking),
                             color = CutTimeNavy,
                             fontWeight = FontWeight.Medium
                         )
@@ -360,7 +365,7 @@ private fun ShopReadinessCard(
 
                 uiState.errorMessage != null -> {
                     Text(
-                        text = "Shop setup could not be checked",
+                        text = stringResource(R.string.dashboard_setup_check_failed),
                         color = CutTimeNavy,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -371,7 +376,7 @@ private fun ShopReadinessCard(
                         fontSize = 13.sp
                     )
                     TextButton(onClick = onRetry) {
-                        Text("Try Again")
+                        Text(stringResource(R.string.action_try_again))
                     }
                 }
 
@@ -390,7 +395,7 @@ private fun ShopReadinessCard(
                         Spacer(modifier = Modifier.size(10.dp))
                         Column {
                             Text(
-                                text = "Your shop is live",
+                                text = stringResource(R.string.dashboard_shop_live),
                                 color = CutTimeNavy,
                                 fontWeight =
                                     FontWeight.SemiBold,
@@ -398,7 +403,7 @@ private fun ShopReadinessCard(
                             )
                             Text(
                                 text =
-                                    "Customers can find it on Home and book available appointments.",
+                                    stringResource(R.string.dashboard_shop_live_hint),
                                 color = CutTimeTextSecondary,
                                 fontSize = 13.sp
                             )
@@ -408,7 +413,7 @@ private fun ShopReadinessCard(
 
                 else -> {
                     Text(
-                        text = "Finish setting up your shop",
+                        text = stringResource(R.string.dashboard_finish_setup),
                         color = CutTimeNavy,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 18.sp
@@ -443,7 +448,7 @@ private fun ShopReadinessCard(
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text =
-                            "Your shop appears to customers automatically when all three steps are complete.",
+                            stringResource(R.string.dashboard_finish_setup_hint),
                         color = CutTimeTextSecondary,
                         fontSize = 12.sp
                     )
@@ -579,7 +584,10 @@ private fun BarberAppointmentCard(
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = "₪${appointment.price}",
+                    text = stringResource(
+                        R.string.appointments_price,
+                        appointment.price
+                    ),
                     color = CutTimeNavy,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -590,38 +598,22 @@ private fun BarberAppointmentCard(
                 color = CutTimeTextSecondary
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.CalendarMonth,
-                    contentDescription = null,
-                    tint = CutTimeNavy,
-                    modifier = Modifier.size(17.dp)
+            AppointmentMetadataRow(
+                icon = Icons.Default.CalendarMonth,
+                text = AppointmentDateTime.formatDateForDisplay(
+                    appointment.appointmentDate
                 )
-                Spacer(modifier = Modifier.size(6.dp))
-                Text(
-                    text =
-                        AppointmentDateTime.formatDateForDisplay(
-                            appointment.appointmentDate
-                        ),
-                    color = CutTimeTextSecondary,
-                    fontSize = 13.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            AppointmentMetadataRow(
+                icon = Icons.Default.Schedule,
+                text = pluralStringResource(
+                    R.plurals.appointments_time_duration,
+                    appointment.durationMinutes,
+                    appointment.appointmentTime,
+                    appointment.durationMinutes
                 )
-                Spacer(modifier = Modifier.size(14.dp))
-                Icon(
-                    imageVector = Icons.Default.Schedule,
-                    contentDescription = null,
-                    tint = CutTimeNavy,
-                    modifier = Modifier.size(17.dp)
-                )
-                Spacer(modifier = Modifier.size(6.dp))
-                Text(
-                    text =
-                        "${appointment.appointmentTime} • " +
-                            "${appointment.durationMinutes} min",
-                    color = CutTimeTextSecondary,
-                    fontSize = 13.sp
-                )
-            }
+            )
             Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -633,27 +625,49 @@ private fun BarberAppointmentCard(
                     },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
                 Button(
                     onClick = {
                         onComplete(appointment.id)
                     },
                     modifier = Modifier.weight(1f),
-                    enabled =
-                        appointment.endAtMillis <=
-                            System.currentTimeMillis(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = CutTimeNavy
                     )
                 ) {
-                    Text("Complete")
+                    Text(stringResource(R.string.action_complete))
                 }
             }
         }
     }
 }
 
+@Composable
+private fun AppointmentMetadataRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = CutTimeNavy,
+            modifier = Modifier.size(17.dp)
+        )
+        Spacer(modifier = Modifier.size(6.dp))
+        Text(
+            text = text,
+            color = CutTimeTextSecondary,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
 @Composable
 private fun DashboardSectionTitle(
     title: String

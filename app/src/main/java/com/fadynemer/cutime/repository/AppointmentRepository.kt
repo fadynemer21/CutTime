@@ -2,10 +2,13 @@ package com.fadynemer.cutime.repository
 
 import com.fadynemer.cutime.model.Appointment
 import com.fadynemer.cutime.model.AppointmentStatus
+import com.fadynemer.cutime.model.BarberAvailabilityDocumentCodec
+import com.fadynemer.cutime.model.BarberShopReadinessEvaluator
 import com.fadynemer.cutime.model.BookingRequest
 import com.fadynemer.cutime.model.RescheduleRequest
 import com.fadynemer.cutime.util.AppointmentDateTime
 import com.fadynemer.cutime.util.AppointmentHistoryPolicy
+import com.fadynemer.cutime.util.BarberManagementValidator
 import com.fadynemer.cutime.util.CustomerNameResolver
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
@@ -15,6 +18,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import java.util.Date
+import java.time.LocalDate
+import java.time.LocalTime
 
 class BookingConflictException :
     Exception(
@@ -167,14 +172,12 @@ class AppointmentRepository(
                     authenticationDisplayName =
                         auth.currentUser?.displayName
                 )
-            val blockedDates =
-                (availability.get("blockedDates") as? List<*>)
-                    ?.filterIsInstance<String>()
-                    .orEmpty()
-
-            if (request.appointmentDate in blockedDates) {
-                throw BookingUnavailableException()
-            }
+            requireBookableSchedule(
+                availability = availability,
+                date = request.appointmentDate,
+                time = request.appointmentTime,
+                durationMinutes = request.durationMinutes
+            )
 
             if (existingSlots.any(DocumentSnapshot::exists)) {
                 throw BookingConflictException()
@@ -360,7 +363,7 @@ class AppointmentRepository(
         updateAppointmentStatus(
             appointmentId = appointmentId,
             newStatus = AppointmentStatus.COMPLETED,
-            releaseSlots = false,
+            releaseSlots = true,
             onResult = onResult
         )
     }
@@ -525,14 +528,12 @@ class AppointmentRepository(
                         .collection(AVAILABILITY_COLLECTION)
                         .document(barberId)
                 )
-            val blockedDates =
-                (availability.get("blockedDates") as? List<*>)
-                    ?.filterIsInstance<String>()
-                    .orEmpty()
-
-            if (request.appointmentDate in blockedDates) {
-                throw BookingUnavailableException()
-            }
+            requireBookableSchedule(
+                availability = availability,
+                date = request.appointmentDate,
+                time = request.appointmentTime,
+                durationMinutes = duration
+            )
 
             val oldSlotIds =
                 (appointment.get("slotIds") as? List<*>)
@@ -696,6 +697,62 @@ class AppointmentRepository(
             onResult(Result.success(Unit))
         }.addOnFailureListener { error ->
             onResult(Result.failure(error))
+        }
+    }
+
+    private fun requireBookableSchedule(
+        availability: DocumentSnapshot,
+        date: String,
+        time: String,
+        durationMinutes: Int
+    ) {
+        if (!availability.exists()) {
+            throw BookingUnavailableException()
+        }
+        val rawDays = availability.get("days") as? List<*>
+            ?: throw BookingUnavailableException()
+        if (rawDays.size != 7) {
+            throw BookingUnavailableException()
+        }
+        val rawDayMaps = rawDays.mapNotNull { raw ->
+            @Suppress("UNCHECKED_CAST")
+            raw as? Map<String, Any?>
+        }
+        val (scheduleSaved, hasOpenDay) =
+            BarberShopReadinessEvaluator.availabilityState(
+                exists = true,
+                rawDays = rawDayMaps
+            )
+        if (!scheduleSaved || !hasOpenDay) {
+            throw BookingUnavailableException()
+        }
+        val schedule = BarberAvailabilityDocumentCodec.decode(
+            rawDays = rawDays,
+            rawBlockedDates = availability.get("blockedDates")
+        )
+        if (
+            schedule.days.size != 7 ||
+            BarberManagementValidator
+                .validateAvailability(schedule) != null
+        ) {
+            throw BookingUnavailableException()
+        }
+        val parsedDate = runCatching { LocalDate.parse(date) }
+            .getOrNull()
+            ?: throw BookingUnavailableException()
+        val parsedTime = runCatching { LocalTime.parse(time) }
+            .getOrNull()
+            ?: throw BookingUnavailableException()
+
+        if (
+            !BarberManagementValidator.isBookable(
+                availability = schedule,
+                date = parsedDate,
+                time = parsedTime,
+                durationMinutes = durationMinutes
+            )
+        ) {
+            throw BookingUnavailableException()
         }
     }
 

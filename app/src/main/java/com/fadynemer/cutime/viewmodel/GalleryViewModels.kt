@@ -106,7 +106,9 @@ data class GalleryManagementUiState(
     val uploadPercent: Int = 0,
     val editingImageId: String? = null,
     val captionDraft: String = "",
+    val isSavingCaption: Boolean = false,
     val deletingImageId: String? = null,
+    val isDeleting: Boolean = false,
     val isReordering: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null
@@ -115,6 +117,9 @@ data class GalleryManagementUiState(
         get() =
             !isLoading &&
                 !isUploading &&
+                !isSavingCaption &&
+                !isDeleting &&
+                !isReordering &&
                 images.size < GalleryLimits.MAX_IMAGES
 }
 
@@ -217,6 +222,13 @@ class BarberGalleryManagementViewModel(
     }
 
     fun beginCaptionEdit(image: GalleryImage) {
+        if (
+            uiState.isUploading ||
+            uiState.isSavingCaption ||
+            uiState.isDeleting ||
+            uiState.isReordering
+        ) return
+
         uiState = uiState.copy(
             editingImageId = image.id,
             captionDraft = image.caption,
@@ -235,6 +247,8 @@ class BarberGalleryManagementViewModel(
     }
 
     fun cancelCaptionEdit() {
+        if (uiState.isSavingCaption) return
+
         uiState = uiState.copy(
             editingImageId = null,
             captionDraft = ""
@@ -243,6 +257,13 @@ class BarberGalleryManagementViewModel(
 
     fun saveCaption() {
         val imageId = uiState.editingImageId ?: return
+        if (uiState.isSavingCaption) return
+
+        uiState = uiState.copy(
+            isSavingCaption = true,
+            errorMessage = null,
+            successMessage = null
+        )
         repository.updateCaption(
             imageId = imageId,
             caption = uiState.captionDraft
@@ -252,12 +273,14 @@ class BarberGalleryManagementViewModel(
                     uiState = uiState.copy(
                         editingImageId = null,
                         captionDraft = "",
+                        isSavingCaption = false,
                         successMessage = "Caption updated.",
                         errorMessage = null
                     )
                 }
                 .onFailure { error ->
                     uiState = uiState.copy(
+                        isSavingCaption = false,
                         errorMessage =
                             error.localizedMessage
                                 ?: "Caption could not be updated."
@@ -267,7 +290,13 @@ class BarberGalleryManagementViewModel(
     }
 
     fun requestDelete(imageId: String) {
-        if (uiState.images.any { it.id == imageId }) {
+        if (
+            !uiState.isUploading &&
+            !uiState.isSavingCaption &&
+            !uiState.isDeleting &&
+            !uiState.isReordering &&
+            uiState.images.any { it.id == imageId }
+        ) {
             uiState = uiState.copy(
                 deletingImageId = imageId,
                 errorMessage = null,
@@ -277,16 +306,25 @@ class BarberGalleryManagementViewModel(
     }
 
     fun cancelDelete() {
+        if (uiState.isDeleting) return
         uiState = uiState.copy(deletingImageId = null)
     }
 
     fun confirmDelete() {
         val imageId = uiState.deletingImageId ?: return
+        if (uiState.isDeleting) return
+
+        uiState = uiState.copy(
+            isDeleting = true,
+            errorMessage = null,
+            successMessage = null
+        )
         repository.deleteImage(imageId) { result ->
             result
                 .onSuccess {
                     uiState = uiState.copy(
                         deletingImageId = null,
+                        isDeleting = false,
                         successMessage = "Image deleted.",
                         errorMessage = null
                     )
@@ -294,6 +332,7 @@ class BarberGalleryManagementViewModel(
                 .onFailure { error ->
                     uiState = uiState.copy(
                         deletingImageId = null,
+                        isDeleting = false,
                         errorMessage =
                             error.localizedMessage
                                 ?: "Image could not be deleted."
@@ -314,7 +353,12 @@ class BarberGalleryManagementViewModel(
         imageId: String,
         offset: Int
     ) {
-        if (uiState.isReordering) return
+        if (
+            uiState.isUploading ||
+            uiState.isSavingCaption ||
+            uiState.isDeleting ||
+            uiState.isReordering
+        ) return
 
         val currentIndex =
             uiState.images.indexOfFirst { it.id == imageId }

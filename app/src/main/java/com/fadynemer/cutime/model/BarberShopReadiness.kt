@@ -60,10 +60,7 @@ object BarberShopReadinessEvaluator {
         val allDaysValid = rawDays.all(::isValidDay)
         val hasOpenDay = rawDays.any { day ->
             day["isOpen"] == true &&
-                validOpenInterval(
-                    day["startTime"] as? String,
-                    day["endTime"] as? String
-                )
+                validWorkingPeriods(day)
         }
         return allDaysValid to (allDaysValid && hasOpenDay)
     }
@@ -103,7 +100,35 @@ object BarberShopReadinessEvaluator {
             return false
         }
 
-        return !isOpen || validOpenInterval(start, end)
+        return !isOpen || validWorkingPeriods(day)
+    }
+
+    private fun validWorkingPeriods(
+        day: Map<String, Any?>
+    ): Boolean {
+        val rawPeriods = day["workingPeriods"] as? List<*>
+        if (rawPeriods.isNullOrEmpty()) {
+            return validOpenInterval(
+                day["startTime"] as? String,
+                day["endTime"] as? String
+            )
+        }
+        if (rawPeriods.size > 6) return false
+
+        var previousEnd: Int? = null
+        rawPeriods.forEach { raw ->
+            val period = raw as? Map<*, *> ?: return false
+            val start = parseTime(period["startTime"] as? String)
+                ?: return false
+            val end = parseTime(period["endTime"] as? String)
+                ?: return false
+            if (start >= end) return false
+            if (previousEnd != null && start < previousEnd) {
+                return false
+            }
+            previousEnd = end
+        }
+        return true
     }
 
     private fun validOpenInterval(

@@ -1,5 +1,9 @@
 package com.fadynemer.cutime.screens
 
+import com.fadynemer.cutime.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -101,6 +105,7 @@ fun BarberGalleryManagementScreen(
     uiState.editingImageId?.let {
         CaptionDialog(
             value = uiState.captionDraft,
+            isSaving = uiState.isSavingCaption,
             onValueChange = galleryViewModel::updateCaptionDraft,
             onSave = galleryViewModel::saveCaption,
             onDismiss = galleryViewModel::cancelCaptionEdit
@@ -109,26 +114,39 @@ fun BarberGalleryManagementScreen(
 
     if (uiState.deletingImageId != null) {
         AlertDialog(
-            onDismissRequest = galleryViewModel::cancelDelete,
-            title = { Text("Delete gallery image?") },
+            onDismissRequest = {
+                if (!uiState.isDeleting) {
+                    galleryViewModel.cancelDelete()
+                }
+            },
+            title = { Text(stringResource(R.string.gallery_delete_title)) },
             text = {
-                Text(
-                    "The image will be removed from your public profile and Firebase Storage."
-                )
+                Text(stringResource(R.string.gallery_delete_message))
             },
             confirmButton = {
                 Button(
                     onClick = galleryViewModel::confirmDelete,
+                    enabled = !uiState.isDeleting,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = CutTimeRed
                     )
                 ) {
-                    Text("Delete")
+                    if (uiState.isDeleting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(stringResource(R.string.action_delete))
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = galleryViewModel::cancelDelete) {
-                    Text("Keep")
+                TextButton(
+                    onClick = galleryViewModel::cancelDelete,
+                    enabled = !uiState.isDeleting
+                ) {
+                    Text(stringResource(R.string.action_keep))
                 }
             }
         )
@@ -202,15 +220,21 @@ fun BarberGalleryManagementScreen(
                             items = uiState.images,
                             key = { _, image -> image.id }
                         ) { index, image ->
+                            val actionsEnabled =
+                                !uiState.isUploading &&
+                                    !uiState.isSavingCaption &&
+                                    !uiState.isDeleting &&
+                                    !uiState.isReordering
                             ManagedGalleryImageCard(
                                 image = image,
+                                actionsEnabled = actionsEnabled,
                                 canMoveEarlier =
                                     index > 0 &&
-                                        !uiState.isReordering,
+                                        actionsEnabled,
                                 canMoveLater =
                                     index <
                                         uiState.images.lastIndex &&
-                                        !uiState.isReordering,
+                                        actionsEnabled,
                                 onEditCaption = {
                                     galleryViewModel
                                         .beginCaptionEdit(image)
@@ -246,7 +270,7 @@ private fun GalleryManagementHeader(
 ) {
     Column {
         Text(
-            text = "Show customers your work",
+            text = stringResource(R.string.gallery_show_work),
             color = CutTimeNavy,
             fontSize = 22.sp,
             fontWeight = FontWeight.SemiBold
@@ -296,6 +320,7 @@ private fun GalleryManagementHeader(
 @Composable
 private fun ManagedGalleryImageCard(
     image: GalleryImage,
+    actionsEnabled: Boolean,
     canMoveEarlier: Boolean,
     canMoveLater: Boolean,
     onEditCaption: () -> Unit,
@@ -357,7 +382,7 @@ private fun ManagedGalleryImageCard(
                         ) {
                             Icon(
                                 Icons.Default.ArrowUpward,
-                                contentDescription = "Move earlier"
+                                contentDescription = stringResource(R.string.content_description_move_earlier)
                             )
                         }
                         IconButton(
@@ -366,22 +391,28 @@ private fun ManagedGalleryImageCard(
                         ) {
                             Icon(
                                 Icons.Default.ArrowDownward,
-                                contentDescription = "Move later"
+                                contentDescription = stringResource(R.string.content_description_move_later)
                             )
                         }
                     }
                     Row {
-                        IconButton(onClick = onEditCaption) {
+                        IconButton(
+                            onClick = onEditCaption,
+                            enabled = actionsEnabled
+                        ) {
                             Icon(
                                 Icons.Default.Edit,
-                                contentDescription = "Edit caption",
+                                contentDescription = stringResource(R.string.content_description_edit_caption),
                                 tint = CutTimeNavy
                             )
                         }
-                        IconButton(onClick = onDelete) {
+                        IconButton(
+                            onClick = onDelete,
+                            enabled = actionsEnabled
+                        ) {
                             Icon(
                                 Icons.Default.Delete,
-                                contentDescription = "Delete image",
+                                contentDescription = stringResource(R.string.content_description_delete_image),
                                 tint = CutTimeRed
                             )
                         }
@@ -415,7 +446,7 @@ private fun EmptyGalleryCard() {
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Your gallery is empty",
+                text = stringResource(R.string.gallery_empty),
                 color = CutTimeNavy,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold
@@ -423,7 +454,7 @@ private fun EmptyGalleryCard() {
             Spacer(modifier = Modifier.height(5.dp))
             Text(
                 text =
-                    "Add clear photos of your cuts and styles to help customers choose you.",
+                    stringResource(R.string.gallery_empty_hint),
                 color = CutTimeTextSecondary,
                 textAlign = TextAlign.Center
             )
@@ -434,36 +465,52 @@ private fun EmptyGalleryCard() {
 @Composable
 private fun CaptionDialog(
     value: String,
+    isSaving: Boolean,
     onValueChange: (String) -> Unit,
     onSave: () -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Image caption") },
+        onDismissRequest = {
+            if (!isSaving) onDismiss()
+        },
+        title = { Text(stringResource(R.string.gallery_caption_title)) },
         text = {
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Caption (optional)") },
+                label = { Text(stringResource(R.string.gallery_caption_optional)) },
                 minLines = 2,
                 maxLines = 4,
                 supportingText = {
                     Text(
-                        "${value.length}/${GalleryLimits.MAX_CAPTION_LENGTH}"
+                        stringResource(R.string.character_count, value.length, GalleryLimits.MAX_CAPTION_LENGTH)
                     )
                 }
             )
         },
         confirmButton = {
-            TextButton(onClick = onSave) {
-                Text("Save")
+            TextButton(
+                onClick = onSave,
+                enabled = !isSaving
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(stringResource(R.string.action_save))
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isSaving
+            ) {
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

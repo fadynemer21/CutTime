@@ -1,5 +1,6 @@
 package com.fadynemer.cutime.screens
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +46,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -53,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fadynemer.cutime.components.CustomerBottomBar
 import com.fadynemer.cutime.components.CustomerDestination
+import com.fadynemer.cutime.R
 import com.fadynemer.cutime.model.Appointment
 import com.fadynemer.cutime.model.AppointmentStatus
 import com.fadynemer.cutime.ui.theme.CutTimeLightGrey
@@ -65,13 +72,14 @@ import com.fadynemer.cutime.viewmodel.AppointmentsUiState
 import com.fadynemer.cutime.viewmodel.AppointmentsViewModel
 import com.fadynemer.cutime.viewmodel.NotificationPreferencesViewModel
 import com.fadynemer.cutime.notifications.AppointmentReminderScheduler
+import com.fadynemer.cutime.util.UiTestTags
 
 private enum class AppointmentSection(
-    val title: String
+    @StringRes val titleRes: Int
 ) {
-    UPCOMING("Upcoming"),
-    COMPLETED("Completed"),
-    CANCELLED("Cancelled")
+    UPCOMING(R.string.appointments_upcoming),
+    COMPLETED(R.string.appointments_completed),
+    CANCELLED(R.string.appointments_cancelled)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -119,7 +127,9 @@ fun AppointmentsScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "My Appointments",
+                            text = stringResource(
+                                R.string.appointments_title
+                            ),
                             color = CutTimeNavy,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -156,13 +166,23 @@ fun AppointmentsScreen(
 
     appointmentToCancel?.let { appointment ->
         AlertDialog(
+            modifier = Modifier.testTag(UiTestTags.CANCEL_DIALOG),
             onDismissRequest = {
                 appointmentToCancel = null
             },
-            title = { Text("Cancel appointment?") },
+            title = {
+                Text(
+                    stringResource(
+                        R.string.appointments_cancel_title
+                    )
+                )
+            },
             text = {
                 Text(
-                    "This will release the reserved time with ${appointment.barberName}."
+                    stringResource(
+                        R.string.appointments_cancel_message,
+                        appointment.barberName
+                    )
                 )
             },
             confirmButton = {
@@ -177,7 +197,11 @@ fun AppointmentsScreen(
                         containerColor = CutTimeRed
                     )
                 ) {
-                    Text("Cancel Appointment")
+                    Text(
+                        stringResource(
+                            R.string.appointments_cancel_action
+                        )
+                    )
                 }
             },
             dismissButton = {
@@ -186,7 +210,7 @@ fun AppointmentsScreen(
                         appointmentToCancel = null
                     }
                 ) {
-                    Text("Keep")
+                    Text(stringResource(R.string.action_keep))
                 }
             }
         )
@@ -194,13 +218,25 @@ fun AppointmentsScreen(
 
     appointmentToDelete?.let { appointment ->
         AlertDialog(
+            modifier = Modifier.testTag(
+                UiTestTags.DELETE_HISTORY_DIALOG
+            ),
             onDismissRequest = {
                 appointmentToDelete = null
             },
-            title = { Text("Delete from history?") },
+            title = {
+                Text(
+                    stringResource(
+                        R.string.appointments_delete_title
+                    )
+                )
+            },
             text = {
                 Text(
-                    "This cancelled appointment with ${appointment.barberName} will disappear from your history. The barber's record will not be deleted."
+                    stringResource(
+                        R.string.appointments_delete_message,
+                        appointment.barberName
+                    )
                 )
             },
             confirmButton = {
@@ -216,7 +252,11 @@ fun AppointmentsScreen(
                         containerColor = CutTimeRed
                     )
                 ) {
-                    Text("Delete from History")
+                    Text(
+                        stringResource(
+                            R.string.appointments_delete_action
+                        )
+                    )
                 }
             },
             dismissButton = {
@@ -225,7 +265,7 @@ fun AppointmentsScreen(
                         appointmentToDelete = null
                     }
                 ) {
-                    Text("Keep")
+                    Text(stringResource(R.string.action_keep))
                 }
             }
         )
@@ -254,7 +294,7 @@ private fun AppointmentsContent(
             }
         }
 
-        uiState.errorMessage != null -> {
+        uiState.errorMessage != null && uiState.isEmpty -> {
             AppointmentErrorState(
                 message = uiState.errorMessage,
                 onRetry = onRetry,
@@ -271,7 +311,9 @@ private fun AppointmentsContent(
 
         else -> {
             LazyColumn(
-                modifier = modifier.navigationBarsPadding(),
+                modifier = modifier
+                    .navigationBarsPadding()
+                    .testTag(UiTestTags.APPOINTMENTS_CONTENT),
                 contentPadding = PaddingValues(
                     start = 20.dp,
                     end = 20.dp,
@@ -280,6 +322,15 @@ private fun AppointmentsContent(
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                uiState.errorMessage?.let { message ->
+                    item {
+                        OfflineContentBanner(
+                            message = message,
+                            onRetry = onRetry
+                        )
+                    }
+                }
+
                 if (uiState.groups.upcoming.isNotEmpty()) {
                     item {
                         AppointmentSectionHeader(
@@ -335,8 +386,9 @@ private fun AppointmentsContent(
                     }
                     item {
                         Text(
-                            text =
-                                "Long-press a cancelled appointment to delete it from your history.",
+                            text = stringResource(
+                                R.string.appointments_delete_hint
+                            ),
                             color = CutTimeTextSecondary,
                             fontSize = 13.sp
                         )
@@ -363,6 +415,42 @@ private fun AppointmentsContent(
 }
 
 @Composable
+private fun OfflineContentBanner(
+    message: String,
+    onRetry: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.errorContainer
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp)
+        ) {
+            Text(
+                text = stringResource(
+                    R.string.appointments_showing_saved
+                ),
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                fontSize = 13.sp
+            )
+            androidx.compose.material3.TextButton(
+                onClick = onRetry,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text(stringResource(R.string.action_retry))
+            }
+        }
+    }
+}
+
+@Composable
 private fun AppointmentSectionHeader(
     section: AppointmentSection,
     count: Int
@@ -374,11 +462,13 @@ private fun AppointmentSectionHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = section.title,
+            text = stringResource(section.titleRes),
             color = CutTimeNavy,
             fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .weight(1f)
+                .semantics { heading() }
         )
         Text(
             text = count.toString(),
@@ -405,13 +495,18 @@ private fun AppointmentCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .testTag(
+                UiTestTags.APPOINTMENT_CARD_PREFIX + appointment.id
+            )
             .combinedClickable(
                 onClick = {
                     onSelected(appointment.id)
                 },
                 onLongClickLabel =
                     if (onDeleteFromHistory != null) {
-                        "Delete from history"
+                        stringResource(
+                            R.string.appointments_delete_long_press
+                        )
                     } else {
                         null
                     },
@@ -464,9 +559,15 @@ private fun AppointmentCard(
                 AppointmentStatusBadge(
                     text =
                         when {
-                            isCancelled -> "Cancelled"
-                            isCompleted -> "Completed"
-                            else -> "Upcoming"
+                            isCancelled -> stringResource(
+                                R.string.appointments_cancelled
+                            )
+                            isCompleted -> stringResource(
+                                R.string.appointments_completed
+                            )
+                            else -> stringResource(
+                                R.string.appointments_upcoming
+                            )
                         },
                     isCancelled = isCancelled,
                     isCompleted = isCompleted
@@ -504,15 +605,21 @@ private fun AppointmentCard(
                 )
                 Spacer(modifier = Modifier.size(7.dp))
                 Text(
-                    text =
-                        "${appointment.appointmentTime} • " +
-                            "${appointment.durationMinutes} minutes",
+                    text = pluralStringResource(
+                        R.plurals.appointments_time_duration,
+                        appointment.durationMinutes,
+                        appointment.appointmentTime,
+                        appointment.durationMinutes
+                    ),
                     color = CutTimeTextSecondary,
                     fontSize = 14.sp
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
-                    text = "₪${appointment.price}",
+                    text = stringResource(
+                        R.string.appointments_price,
+                        appointment.price
+                    ),
                     color = CutTimeNavy,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -526,7 +633,11 @@ private fun AppointmentCard(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Cancel Appointment")
+                    Text(
+                        stringResource(
+                            R.string.appointments_cancel_action
+                        )
+                    )
                 }
             }
         }
@@ -581,14 +692,14 @@ private fun EmptyAppointmentsState(
         )
         Spacer(modifier = Modifier.height(15.dp))
         Text(
-            text = "No appointments yet",
+            text = stringResource(R.string.appointments_none),
             color = CutTimeNavy,
             fontSize = 22.sp,
             fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.height(7.dp))
         Text(
-            text = "Book a barber and your appointments will appear here.",
+            text = stringResource(R.string.appointments_none_hint),
             color = CutTimeTextSecondary,
             textAlign = TextAlign.Center
         )
@@ -599,7 +710,7 @@ private fun EmptyAppointmentsState(
                 containerColor = CutTimeNavy
             )
         ) {
-            Text("Browse Barbers")
+            Text(stringResource(R.string.action_browse_barbers))
         }
     }
 }
@@ -623,7 +734,9 @@ private fun AppointmentErrorState(
         )
         Spacer(modifier = Modifier.height(14.dp))
         Text(
-            text = "Could not load appointments",
+            text = stringResource(
+                R.string.appointments_load_failed
+            ),
             color = CutTimeNavy,
             fontSize = 21.sp,
             fontWeight = FontWeight.SemiBold,
@@ -638,11 +751,14 @@ private fun AppointmentErrorState(
         Spacer(modifier = Modifier.height(20.dp))
         Button(
             onClick = onRetry,
+            modifier = Modifier.testTag(
+                UiTestTags.APPOINTMENTS_RETRY
+            ),
             colors = ButtonDefaults.buttonColors(
                 containerColor = CutTimeNavy
             )
         ) {
-            Text("Try Again")
+            Text(stringResource(R.string.action_try_again))
         }
     }
 }

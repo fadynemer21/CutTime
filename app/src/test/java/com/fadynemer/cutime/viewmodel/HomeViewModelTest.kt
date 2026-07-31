@@ -104,4 +104,24 @@ class HomeViewModelTest {
         assertTrue(viewModel.uiState.isLoading)
         assertNull(viewModel.uiState.errorMessage)
     }
+
+    @Test
+    fun reconnectErrorKeepsPreviouslyLoadedCatalogVisible() {
+        val repository = FakeBarberCatalogDataSource()
+        val viewModel = HomeViewModel(repository)
+        val cached = SampleBarberData.barberShops.take(1)
+        repository.emitCatalog(
+            Result.success(
+                BarberCatalog(
+                    barbers = cached,
+                    source = CatalogSource.FIRESTORE
+                )
+            )
+        )
+
+        repository.emitCatalog(Result.failure(Exception("Offline")))
+
+        assertEquals(cached, viewModel.uiState.barbers)
+        assertEquals("Offline", viewModel.uiState.errorMessage)
+    }
 }

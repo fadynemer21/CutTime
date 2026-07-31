@@ -44,6 +44,10 @@ fun AppNavigation(
 
     LaunchedEffect(externalRoute, currentRoute) {
         val route = externalRoute ?: return@LaunchedEffect
+        if (!AppRoutePolicy.isAllowed(route)) {
+            onExternalRouteConsumed()
+            return@LaunchedEffect
+        }
         val authenticationRoutes = setOf(
             AppRoute.Splash.pattern,
             AppRoute.Welcome.pattern,

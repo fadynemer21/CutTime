@@ -9,7 +9,7 @@ import {
   bookingCreatedTargets,
   ratingCreatedTarget,
 } from "./content.js";
-import {deliverNotification} from "./delivery.js";
+import {database, deliverNotification} from "./delivery.js";
 import {asAppointment, asRating} from "./domain.js";
 import {sendDueReminders} from "./reminders.js";
 
@@ -125,7 +125,7 @@ export const onRatingCreated = onDocumentCreated(
       return;
     }
 
-    const customerSnapshot = await snapshot.firestore
+    const customerSnapshot = await database
       .collection("users")
       .doc(rating.customerId)
       .get();

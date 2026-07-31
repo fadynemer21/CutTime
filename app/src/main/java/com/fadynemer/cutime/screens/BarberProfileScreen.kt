@@ -1,5 +1,9 @@
 package com.fadynemer.cutime.screens
 
+import com.fadynemer.cutime.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -94,7 +98,7 @@ fun BarberProfileScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Barber Profile",
+                            text = stringResource(R.string.barber_profile_title),
                             color = CutTimeNavy,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -104,7 +108,7 @@ fun BarberProfileScreen(
                             Icon(
                                 imageVector =
                                     Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.action_back),
                                 tint = CutTimeNavy
                             )
                         }
@@ -212,17 +216,38 @@ private fun BarberProfileContent(
         item {
             ProfileSection(title = "Opening Hours") {
                 barberShop.openingHours.forEachIndexed { index, openingHours ->
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = openingHours.day,
-                            color = CutTimeTextSecondary,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            text = openingHours.hours,
-                            color = CutTimeNavy,
-                            fontWeight = FontWeight.Medium
-                        )
+                    val hasMultipleWorkingPeriods =
+                        openingHours.hours.contains(',')
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = openingHours.day,
+                                color = CutTimeTextSecondary,
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (!hasMultipleWorkingPeriods) {
+                                Text(
+                                    text = openingHours.hours,
+                                    color = CutTimeNavy,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                        if (hasMultipleWorkingPeriods) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = openingHours.hours,
+                                color = CutTimeNavy,
+                                fontWeight = FontWeight.Medium,
+                                lineHeight = 22.sp,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
 
                     if (index < barberShop.openingHours.lastIndex) {
@@ -297,7 +322,7 @@ private fun BarberProfileContent(
             if (barberShop.isDevelopmentFallback) {
                 Text(
                     text =
-                        "Development preview only. Booking requires a real Barber account with a saved shop profile, service, and availability.",
+                        stringResource(R.string.barber_profile_development_preview),
                     color = CutTimeRed,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
@@ -369,14 +394,14 @@ private fun ReviewsContent(
                         containerColor = CutTimeNavy
                     )
                 ) {
-                    Text("Retry")
+                    Text(stringResource(R.string.action_retry))
                 }
             }
         }
 
         ratings.isEmpty() -> {
             Text(
-                text = "No written reviews yet.",
+                text = stringResource(R.string.barber_profile_no_reviews),
                 color = CutTimeTextSecondary
             )
         }
@@ -483,14 +508,14 @@ private fun CustomerGallerySection(
                             containerColor = CutTimeNavy
                         )
                     ) {
-                        Text("Retry")
+                        Text(stringResource(R.string.action_retry))
                     }
                 }
             }
 
             else -> {
                 Text(
-                    text = "No gallery images yet.",
+                    text = stringResource(R.string.barber_profile_no_gallery),
                     color = CutTimeTextSecondary
                 )
             }
@@ -533,7 +558,7 @@ private fun GalleryImageDialog(
                     containerColor = CutTimeNavy
                 )
             ) {
-                Text("Close")
+                Text(stringResource(R.string.action_close))
             }
         }
     )
@@ -624,7 +649,7 @@ private fun ProfileHeader(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.Star,
-                        contentDescription = "Rating",
+                        contentDescription = stringResource(R.string.content_description_rating),
                         tint = CutTimeRed,
                         modifier = Modifier.size(19.dp)
                     )
@@ -703,14 +728,14 @@ private fun BarberNotFound(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Barber not found",
+            text = stringResource(R.string.booking_not_found),
             color = CutTimeNavy,
             fontSize = 22.sp,
             fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "This barber profile is no longer available.",
+            text = stringResource(R.string.barber_profile_unavailable),
             color = CutTimeTextSecondary,
             textAlign = TextAlign.Center
         )
@@ -721,7 +746,7 @@ private fun BarberNotFound(
                 containerColor = CutTimeNavy
             )
         ) {
-            Text("Back to Home")
+            Text(stringResource(R.string.action_browse_barbers))
         }
     }
 }

@@ -1,5 +1,9 @@
 package com.fadynemer.cutime.components
 
+import com.fadynemer.cutime.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -75,7 +79,7 @@ fun BarberCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Star,
-                        contentDescription = "Rating",
+                        contentDescription = stringResource(R.string.content_description_rating),
                         tint = CutTimeRed,
                         modifier = Modifier.size(18.dp)
                     )
@@ -100,7 +104,7 @@ fun BarberCard(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Haircuts from ₪${barberShop.startingPrice}",
+                    text = stringResource(R.string.barber_card_haircuts_from, barberShop.startingPrice),
                     fontSize = 14.sp,
                     color = CutTimeTextSecondary
                 )
@@ -120,7 +124,7 @@ fun BarberCard(
                     Spacer(modifier = Modifier.width(5.dp))
 
                     Text(
-                        text = "Next: ${barberShop.nextAvailable}",
+                        text = stringResource(R.string.barber_card_next, barberShop.nextAvailable),
                         fontSize = 13.sp,
                         color = CutTimeTextSecondary
                     )
@@ -136,7 +140,7 @@ fun BarberCard(
                     ),
                     modifier = Modifier.align(Alignment.End)
                 ) {
-                    Text("View Profile")
+                    Text(stringResource(R.string.action_view_profile))
                 }
             }
         }

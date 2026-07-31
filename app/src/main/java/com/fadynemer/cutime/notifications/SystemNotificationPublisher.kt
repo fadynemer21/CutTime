@@ -10,6 +10,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.fadynemer.cutime.MainActivity
 import com.fadynemer.cutime.R
+import com.fadynemer.cutime.navigation.AppRoutePolicy
 
 object SystemNotificationPublisher {
     const val EXTRA_ROUTE = "notification_route"
@@ -37,7 +38,10 @@ object SystemNotificationPublisher {
                 flags =
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
                         Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra(EXTRA_ROUTE, route)
+                putExtra(
+                    EXTRA_ROUTE,
+                    route?.takeIf(AppRoutePolicy::isAllowed)
+                )
             }
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -49,7 +53,13 @@ object SystemNotificationPublisher {
         val notification =
             NotificationCompat.Builder(context, channelId)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle(title.ifBlank { "CuTime" })
+                .setContentTitle(
+                    title.ifBlank {
+                        context.getString(
+                            R.string.notification_default_title
+                        )
+                    }
+                )
                 .setContentText(message)
                 .setStyle(
                     NotificationCompat.BigTextStyle()

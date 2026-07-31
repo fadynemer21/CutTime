@@ -28,6 +28,13 @@ data class BookingUiState(
             selectedServiceId != null &&
                 selectedDate != null &&
                 selectedTime != null
+
+    val canSubmit: Boolean
+        get() =
+            canReview &&
+                isReviewing &&
+                !isSubmitting &&
+                createdAppointmentId == null
 }
 
 class BookingViewModel(
@@ -87,8 +94,7 @@ class BookingViewModel(
         barberShop: BarberShop
     ) {
         if (
-            uiState.isSubmitting ||
-            !uiState.canReview
+            !uiState.canSubmit
         ) {
             return
         }

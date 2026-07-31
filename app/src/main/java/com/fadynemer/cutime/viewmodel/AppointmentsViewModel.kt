@@ -143,7 +143,7 @@ class AppointmentsViewModel(
                         )
                     }
                     .onFailure { error ->
-                        uiState = AppointmentsUiState(
+                        uiState = uiState.copy(
                             isLoading = false,
                             errorMessage =
                                 createReadableError(error)

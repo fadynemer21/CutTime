@@ -1,5 +1,9 @@
 package com.fadynemer.cutime.screens
 
+import com.fadynemer.cutime.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -98,7 +102,7 @@ fun BarberServicesScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "No services yet",
+                            text = stringResource(R.string.services_none),
                             color = CutTimeNavy,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.SemiBold
@@ -106,7 +110,7 @@ fun BarberServicesScreen(
                         Spacer(modifier = Modifier.height(7.dp))
                         Text(
                             text =
-                                "Add the services customers can book.",
+                                stringResource(R.string.services_add_hint),
                             color = CutTimeTextSecondary
                         )
                     }
@@ -125,7 +129,7 @@ fun BarberServicesScreen(
                         item {
                             Text(
                                 text =
-                                    "Manage prices and appointment durations.",
+                                    stringResource(R.string.services_manage_hint),
                                 color = CutTimeTextSecondary,
                                 modifier = Modifier.padding(
                                     bottom = 6.dp
@@ -187,7 +191,7 @@ fun BarberServicesScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Add service"
+                    contentDescription = stringResource(R.string.content_description_add_service)
                 )
             }
         }
@@ -218,12 +222,10 @@ fun BarberServicesScreen(
                 deletingService = null
             },
             title = {
-                Text("Remove service?")
+                Text(stringResource(R.string.service_remove_title))
             },
             text = {
-                Text(
-                    "Customers will no longer be able to book ${service.name}."
-                )
+                Text(stringResource(R.string.service_remove_message, service.name))
             },
             confirmButton = {
                 TextButton(
@@ -232,7 +234,7 @@ fun BarberServicesScreen(
                         deletingService = null
                     }
                 ) {
-                    Text("Remove", color = CutTimeRed)
+                    Text(stringResource(R.string.action_remove), color = CutTimeRed)
                 }
             },
             dismissButton = {
@@ -241,7 +243,7 @@ fun BarberServicesScreen(
                         deletingService = null
                     }
                 ) {
-                    Text("Keep")
+                    Text(stringResource(R.string.action_keep))
                 }
             }
         )
@@ -283,14 +285,14 @@ private fun ServiceManagementCard(
             IconButton(onClick = onEdit) {
                 Icon(
                     imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit ${service.name}",
+                    contentDescription = stringResource(R.string.content_description_edit_service, service.name),
                     tint = CutTimeNavy
                 )
             }
             IconButton(onClick = onDelete) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Remove ${service.name}",
+                    contentDescription = stringResource(R.string.content_description_remove_service, service.name),
                     tint = CutTimeRed
                 )
             }
@@ -336,7 +338,7 @@ private fun ServiceEditorDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Service name") },
+                    label = { Text(stringResource(R.string.service_name)) },
                     singleLine = true
                 )
                 OutlinedTextField(
@@ -344,7 +346,7 @@ private fun ServiceEditorDialog(
                     onValueChange = {
                         price = it.filter(Char::isDigit)
                     },
-                    label = { Text("Price (₪)") },
+                    label = { Text(stringResource(R.string.service_price)) },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number
                     ),
@@ -355,9 +357,9 @@ private fun ServiceEditorDialog(
                     onValueChange = {
                         duration = it.filter(Char::isDigit)
                     },
-                    label = { Text("Duration in minutes") },
+                    label = { Text(stringResource(R.string.service_duration_minutes)) },
                     supportingText = {
-                        Text("Use a 15-minute interval.")
+                        Text(stringResource(R.string.service_duration_interval_hint))
                     },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number
@@ -397,7 +399,7 @@ private fun ServiceEditorDialog(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Save")
+                    Text(stringResource(R.string.action_save))
                 }
             }
         },
@@ -406,7 +408,7 @@ private fun ServiceEditorDialog(
                 onClick = onDismiss,
                 enabled = !isSaving
             ) {
-                Text("Cancel")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

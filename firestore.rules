@@ -168,11 +168,32 @@ service cloud.firestore {
       }
     }
 
+    match /accountDeletionRequests/{userId} {
+      allow read: if ownsUser(userId);
+
+      allow create: if ownsUser(userId) &&
+        request.resource.data.keys().hasOnly([
+          'userId',
+          'email',
+          'role',
+          'status',
+          'requestedAt'
+        ]) &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.email == request.auth.token.email &&
+        request.resource.data.role == currentUser().data.role &&
+        request.resource.data.status == 'PENDING' &&
+        request.resource.data.requestedAt == request.time;
+
+      // Only a trusted administrator may process or remove the request.
+      allow update, delete: if false;
+    }
+
     match /appointments/{appointmentId} {
       allow create: if canUseCustomerFeatures() &&
         request.resource.data.appointmentId == appointmentId &&
         request.resource.data.customerId == request.auth.uid &&
-        request.resource.data.barberId != request.auth.uid &&
+
         request.resource.data.status == 'UPCOMING' &&
         request.resource.data.startAt > request.time &&
         request.resource.data.endAt >
@@ -239,10 +260,7 @@ service cloud.firestore {
             resource.data.barberId == request.auth.uid &&
             (
               request.resource.data.status == 'CANCELLED' ||
-              (
-                request.resource.data.status == 'COMPLETED' &&
-                resource.data.endAt <= request.time
-              )
+              request.resource.data.status == 'COMPLETED'
             )
           )
         );
@@ -466,7 +484,15 @@ service cloud.firestore {
 
       allow create, update: if hasRole('BARBER') &&
         request.auth.uid == barberId &&
+        request.resource.data.keys().hasOnly([
+          'barberId',
+          'schemaVersion',
+          'days',
+          'blockedDates',
+          'updatedAt'
+        ]) &&
         request.resource.data.barberId == request.auth.uid &&
+        request.resource.data.schemaVersion == 2 &&
         request.resource.data.days is list &&
         request.resource.data.days.size() == 7 &&
         request.resource.data.blockedDates is list &&
@@ -514,7 +540,7 @@ service cloud.firestore {
         (
           appointmentAfter(
             resource.data.appointmentId
-          ).data.status == 'CANCELLED' ||
+          ).data.status in ['CANCELLED', 'COMPLETED'] ||
           (
             appointmentAfter(
               resource.data.appointmentId

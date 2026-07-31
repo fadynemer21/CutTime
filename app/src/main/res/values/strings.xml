@@ -1,3 +1,111 @@
 <resources>
     <string name="app_name">CutTime</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_appointments">Appointments</string>
+    <string name="nav_profile">Profile</string>
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_services">Services</string>
+    <string name="nav_hours">Hours</string>
+    <string name="action_back">Back</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_try_again">Try Again</string>
+    <string name="action_keep">Keep</string>
+    <string name="action_go_back">Go Back</string>
+    <string name="action_edit_selection">Edit Selection</string>
+    <string name="action_browse_barbers">Browse Barbers</string>
+    <string name="content_description_cutime_logo">CuTime logo</string>
+    <string name="content_description_search">Search</string>
+
+    <string name="home_tagline">Find the right barber for your next cut.</string>
+    <string name="home_search_hint">Search barbers&#8230;</string>
+    <string name="home_available_barbers">Available Barbers</string>
+    <plurals name="home_available_count">
+        <item quantity="one">%1$d available</item>
+        <item quantity="other">%1$d available</item>
+    </plurals>
+    <string name="home_development_fallback">These are development previews and cannot be booked. A real shop appears after a Barber account saves its profile, service, and availability.</string>
+    <string name="home_no_barbers">No barbers found</string>
+    <string name="home_no_barbers_hint">Try searching for a different name.</string>
+    <string name="home_showing_saved">Showing saved barber shops</string>
+
+    <string name="appointments_title">My Appointments</string>
+    <string name="appointments_upcoming">Upcoming</string>
+    <string name="appointments_completed">Completed</string>
+    <string name="appointments_cancelled">Cancelled</string>
+    <string name="appointments_showing_saved">Showing saved appointments</string>
+    <string name="appointments_cancel_title">Cancel appointment?</string>
+    <string name="appointments_cancel_message">This will release the reserved time with %1$s.</string>
+    <string name="appointments_cancel_action">Cancel Appointment</string>
+    <string name="appointments_delete_title">Delete from history?</string>
+    <string name="appointments_delete_message">This cancelled appointment with %1$s will disappear from your history. The barber&#8217;s record will not be deleted.</string>
+    <string name="appointments_delete_action">Delete from History</string>
+    <string name="appointments_delete_long_press">Delete from history</string>
+    <string name="appointments_delete_hint">Long-press a cancelled appointment to delete it from your history.</string>
+    <plurals name="appointments_time_duration">
+        <item quantity="one">%1$s &#8226; %2$d minute</item>
+        <item quantity="other">%1$s &#8226; %2$d minutes</item>
+    </plurals>
+    <string name="appointments_price">&#8362;%1$d</string>
+    <string name="appointments_none">No appointments yet</string>
+    <string name="appointments_none_hint">Book a barber and your appointments will appear here.</string>
+    <string name="appointments_load_failed">Could not load appointments</string>
+    <string name="appointment_detail_status">Status</string>
+    <string name="appointment_detail_price">Price</string>
+
+    <string name="booking_title">Book Appointment</string>
+    <string name="booking_review_title">Review Booking</string>
+    <string name="booking_confirmed_title">Booking Confirmed</string>
+    <string name="booking_select_service">Select a service</string>
+    <string name="booking_select_date">Select a date</string>
+    <string name="booking_select_time">Select a time</string>
+    <string name="booking_choose_prompt">Choose a service, date, and available time.</string>
+    <string name="booking_choose_date_for_times">Choose a date to view available times.</string>
+    <string name="booking_times_for_date">Available times for the selected date</string>
+    <string name="booking_choose_service_for_times">Choose a service to calculate available times.</string>
+    <string name="booking_no_times">No remaining times are available on this date.</string>
+    <string name="booking_review_action">Review Booking</string>
+    <string name="booking_confirm_action">Confirm Booking</string>
+    <string name="booking_check_details">Check your appointment</string>
+    <string name="booking_check_details_hint">Review the details before the appointment is submitted.</string>
+    <plurals name="booking_duration">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <string name="booking_price">&#8362;%1$d</string>
+    <string name="booking_summary_barber">Barber</string>
+    <string name="booking_summary_service">Service</string>
+    <string name="booking_summary_duration">Duration</string>
+    <string name="booking_summary_date">Date</string>
+    <string name="booking_summary_time">Time</string>
+    <string name="booking_summary_total">Total</string>
+    <string name="booking_not_found">Barber not found</string>
+    <string name="booking_not_found_message">This barber could not be found.</string>
+    <string name="booking_preview_unavailable">Preview barber</string>
+    <string name="booking_preview_unavailable_message">This is bundled development data, not a Barber account. Create a Barber account and save its shop profile, service, and availability before customers can book it.</string>
+    <string name="booking_success">Appointment booked</string>
+    <string name="booking_success_message">Your appointment with %1$s is confirmed.</string>
+    <string name="booking_view_appointments">View My Appointments</string>
+    <string name="booking_today">Today</string>
+
+    <string name="notification_channel_appointments">Appointment updates</string>
+    <string name="notification_channel_appointments_description">Booking confirmations, changes, cancellations, and reminders</string>
+    <string name="notification_channel_general">General updates</string>
+    <string name="notification_channel_general_description">CuTime account and service updates</string>
+    <string name="notification_default_title">CuTime</string>
+
+    <string name="availability_break_hint">Add separate work periods. The gaps between them are your breaks.</string>
+    <string name="availability_work_period">Work period %1$d</string>
+    <string name="availability_starts">Starts</string>
+    <string name="availability_ends">Ends</string>
+    <string name="availability_add_period">Add work period</string>
+    <string name="availability_remove_period">Remove this work period from %1$s</string>
+
+    <string name="deletion_section_title">Data and privacy</string>
+    <string name="deletion_section_message">You can submit a request to permanently delete your CuTime account and associated personal data.</string>
+    <string name="deletion_request_action">Request account deletion</string>
+    <string name="deletion_confirm_title">Request account deletion?</string>
+    <string name="deletion_confirm_message">This submits a permanent deletion request for review. Your account remains active until the request is processed, and you may be contacted if appointment records require clarification.</string>
+    <string name="deletion_submit_action">Submit Request</string>
+    <string name="action_keep_account">Keep Account</string>
+    <string name="deletion_pending_message">Your account deletion request is pending. You can continue using CuTime until it is processed.</string>
 </resources>

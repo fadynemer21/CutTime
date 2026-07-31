@@ -66,7 +66,11 @@ internal class FakeGalleryDataSource : GalleryDataSource {
         private set
     var updatedCaption: String? = null
         private set
+    var captionUpdateCount = 0
+        private set
     var deletedImageId: String? = null
+        private set
+    var deleteCount = 0
         private set
     var reorderedImageIds: List<String>? = null
         private set
@@ -100,6 +104,7 @@ internal class FakeGalleryDataSource : GalleryDataSource {
     ) {
         updatedCaptionImageId = imageId
         updatedCaption = caption
+        captionUpdateCount += 1
         captionCallback = onResult
     }
 
@@ -108,6 +113,7 @@ internal class FakeGalleryDataSource : GalleryDataSource {
         onResult: (Result<Unit>) -> Unit
     ) {
         deletedImageId = imageId
+        deleteCount += 1
         deleteCallback = onResult
     }
 

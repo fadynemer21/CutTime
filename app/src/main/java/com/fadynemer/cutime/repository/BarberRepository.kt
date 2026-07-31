@@ -1,11 +1,10 @@
 package com.fadynemer.cutime.repository
 
 import com.fadynemer.cutime.model.BarberAvailability
+import com.fadynemer.cutime.model.BarberAvailabilityDocumentCodec
 import com.fadynemer.cutime.model.BarberService
 import com.fadynemer.cutime.model.AvailabilitySaveResult
-import com.fadynemer.cutime.model.DayAvailability
 import com.fadynemer.cutime.model.ManagedBarberProfile
-import com.fadynemer.cutime.model.defaultWorkingWeek
 import com.fadynemer.cutime.util.HolidayCancellationPolicy
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
@@ -299,14 +298,9 @@ class BarberRepository(
         onResult: (Result<Unit>) -> Unit
     ) {
         val dayMaps =
-            availability.days.map { day ->
-                hashMapOf(
-                    "day" to day.day,
-                    "isOpen" to day.isOpen,
-                    "startTime" to day.startTime,
-                    "endTime" to day.endTime
-                )
-            }
+            availability.days.map(
+                BarberAvailabilityDocumentCodec::encodeDay
+            )
         val availabilityReference =
             firestore
                 .collection(AVAILABILITY_COLLECTION)
@@ -318,6 +312,9 @@ class BarberRepository(
                     availabilityReference,
                     hashMapOf(
                         "barberId" to uid,
+                        "schemaVersion" to
+                            BarberAvailabilityDocumentCodec
+                                .CURRENT_SCHEMA_VERSION,
                         "days" to dayMaps,
                         "blockedDates" to
                             availability.blockedDates
@@ -540,40 +537,9 @@ class BarberRepository(
     private fun availabilityFromDocument(
         document: DocumentSnapshot
     ): BarberAvailability {
-        val rawDays =
-            document.get("days") as? List<*>
-        val days =
-            rawDays
-                ?.mapNotNull { value ->
-                    val map = value as? Map<*, *>
-                        ?: return@mapNotNull null
-
-                    DayAvailability(
-                        day =
-                            map["day"] as? String
-                                ?: return@mapNotNull null,
-                        isOpen =
-                            map["isOpen"] as? Boolean
-                                ?: false,
-                        startTime =
-                            map["startTime"] as? String
-                                ?: "09:00",
-                        endTime =
-                            map["endTime"] as? String
-                                ?: "17:00"
-                    )
-                }
-                ?.takeIf(List<DayAvailability>::isNotEmpty)
-                ?: defaultWorkingWeek()
-
-        val blockedDates =
-            (document.get("blockedDates") as? List<*>)
-                ?.filterIsInstance<String>()
-                .orEmpty()
-
-        return BarberAvailability(
-            days = days,
-            blockedDates = blockedDates
+        return BarberAvailabilityDocumentCodec.decode(
+            rawDays = document.get("days"),
+            rawBlockedDates = document.get("blockedDates")
         )
     }
 

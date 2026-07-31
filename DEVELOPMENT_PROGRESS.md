@@ -5,14 +5,15 @@ roadmap. It is intentionally updated before new batch summaries are delivered.
 
 ## Current completion estimate
 
-Estimated overall completion after the gallery and notification mega-batch:
-**90-93%**.
+Estimated overall completion after the production-readiness batch:
+**94-96%**.
 
-The core product, cross-role lifecycle, real catalog, gallery, in-app
-notifications, push source, and local/server reminder architecture are now
-implemented. The remaining work is primarily emulator/device validation,
-production Firebase deployment, accessibility/offline hardening, release
-configuration, and submission assets.
+The product implementation, cross-role lifecycle, real catalog, gallery,
+notification/reminder architecture, local hardening, test source, release
+configuration, CI, and submission documentation are implemented. The remaining
+work is primarily live Firebase deployment/verification, device and emulator
+execution, real release signing, final media assets, account-deletion policy,
+and Play Console submission.
 
 ## Completion estimate after barber-management batch
 
@@ -571,3 +572,317 @@ Verification after cancelled-history removal:
 - APK output: `app/build/outputs/apk/debug/app-debug.apk`.
 - Git whitespace/error check: passed; only existing Windows line-ending notices
   were reported.
+
+## Production-readiness, testing, accessibility, and submission batch
+
+Completed locally on 31 July 2026.
+
+### Architecture and lifecycle audit
+
+- Inspected the full tracked/untracked project layout and Git history before
+  editing.
+- Audited every production Kotlin package, repository interface, ViewModel,
+  navigation route, Firebase configuration file, test source set, release
+  configuration, and existing documentation.
+- Removed the remaining production non-null assertions from catalog
+  aggregation and registration.
+- Added an authenticated destination allow-list for notification and FCM routes.
+- Rejected malformed, oversized, traversal-like, external, authentication, and
+  unknown remote routes before Navigation Compose receives them.
+- Added defense-in-depth route validation when a system notification intent is
+  created.
+- Restricted remote notification channel IDs to the two declared channels.
+
+### Duplicate action, reconnect, and gallery hardening
+
+- Required the customer to enter the explicit booking-review state before
+  submission can start.
+- Kept the existing running-request guard so rapid confirm taps create only one
+  repository call.
+- Preserved previously loaded customer catalog and appointment groups when a
+  listener later reports a reconnect/offline error.
+- Added saved-data warning cards and retry actions instead of replacing cached
+  content with an empty error page.
+- Serialized gallery caption saves and deletes.
+- Disabled gallery mutation controls while upload, caption save, delete, or
+  reorder work is active.
+- Added visible progress inside caption/delete confirmations and prevented
+  dismissal while their write is running.
+- Kept optimistic gallery ordering rollback behavior.
+
+### Privacy and release preparation
+
+- Disabled Android backup and cleartext HTTP.
+- Added API 26-30 and API 31+ backup/data-transfer exclusion rules as defense in
+  depth for account-mode, session, and device registration state.
+- Enabled R8 code shrinking and resource shrinking for release builds.
+- Added project ProGuard rules for Firestore reflection models, FCM entry
+  points, WorkManager entry points, and useful stack-trace metadata.
+- Added ignored signing-secret and release-artifact patterns.
+- Added `keystore.properties.example` without creating a real key.
+- Moved the large logo to `drawable-nodpi` to prevent density inflation while
+  keeping the visual resource unchanged.
+- Cleaned unused template colors and modernized mirrored navigation icons.
+
+### Accessibility, responsive UI, and localization preparation
+
+- Added stable semantics/test tags for Home search/catalog/retry, booking form,
+  service/date/time choices, review/submit/success, appointment content/cards,
+  retry, and confirmation dialogs.
+- Marked core section titles as accessibility headings.
+- Extracted core customer Home, booking, appointment, bottom-navigation, and
+  notification-channel copy into Android string/plural resources.
+- Added quantity-aware minute and catalog-count plurals.
+- Replaced the wrapping Barber `Availability` bottom label with the responsive
+  `Hours` label while preserving route and visual styling.
+- Forced bottom labels to one line with safe ellipsis behavior.
+- Converted fixed action heights to minimum heights in the booking flow so
+  larger font settings can expand controls.
+- Added or retained content descriptions for actionable icons and silent
+  semantics for decorative icons.
+
+### Automated test expansion
+
+- Added route-policy tests for every authenticated top-level destination,
+  generated typed destinations, authentication-route rejection, malformed
+  input, external input, and maximum length.
+- Added notification payload tests proving unsafe explicit routes are ignored
+  or safely fall back to a validated appointment target.
+- Added booking tests for pre-review submission rejection and duplicate-submit
+  suppression.
+- Added catalog and appointment tests proving previously loaded data survives a
+  listener failure.
+- Added gallery tests for duplicate caption-save and duplicate-delete
+  suppression, plus completion-state reset.
+- Replaced the placeholder instrumentation test with application identity,
+  label, and backup-policy checks.
+- Added Compose device-test source for Customer bottom navigation, responsive
+  Barber navigation, and the required booking form-to-review progression.
+
+### Firebase emulator and CI preparation
+
+- Added local Auth, Firestore, Storage, and Emulator UI ports to `firebase.json`.
+- Added executable Node test source for Firestore user privacy, immutable role,
+  barber ownership, appointment privacy, cancelled-history hiding,
+  notification ownership/trust, fixed `[120, 30]` reminder settings, and query
+  constraints.
+- Added executable Storage rule source for ownership, allowed paths, MIME
+  types, custom metadata, authenticated reads, and owner-only deletion.
+- Added an isolated emulator test package and setup guide. Dependencies were not
+  installed and live Firebase was not touched.
+- Added GitHub Actions jobs for Android JVM tests, device-test compilation,
+  Lint, debug/release APKs, Functions build/tests, Firebase emulator rule tests,
+  and report/APK artifacts.
+
+### Submission documentation
+
+- Added a complete project README and architecture document.
+- Added privacy policy and Data Safety drafts with explicit publisher,
+  retention, and account-deletion placeholders.
+- Added permissions explanation, manual QA plan, device matrix, screenshot
+  plan, demo script, store-listing copy, and final release checklist.
+- Documented the Storage download-token privacy limitation and the absence of
+  broad media, camera, location, contacts, microphone, or exact-alarm
+  permissions.
+
+### Final local verification
+
+- Debug and release Kotlin compilation: passed.
+- JVM unit tests: **291 passed**, 0 failures, 0 errors, 0 skipped across 31
+  suites.
+- Device/instrumentation test source: **6 tests compiled**. Execution is pending
+  because no emulator or physical device was used.
+- Firebase emulator rule source: **15 tests prepared**. Execution is pending
+  because Node.js/Firebase CLI dependencies were deliberately not installed.
+- Cloud Functions source: **29 tests present**. Execution remains pending
+  locally because Node.js/npm is unavailable.
+- Android Lint: passed with **0 errors**. Remaining warnings are toolchain and
+  dependency update notices intentionally not upgraded inside this batch.
+- Debug APK: passed at
+  `app/build/outputs/apk/debug/app-debug.apk`.
+- Minified/resource-shrunk unsigned release APK: passed at
+  `app/build/outputs/apk/release/app-release-unsigned.apk`.
+- `firebase.json`, `firestore.indexes.json`, `.firebaserc`, and Firebase test
+  package JSON parsing: passed.
+- Git whitespace check: no whitespace errors; Git reports only Windows
+  line-ending conversion notices.
+- No Firebase deployment, billing change, dependency installation, emulator,
+  device, real signing key, commit, push, PR, or Play Console mutation was
+  performed.
+
+### Remaining external work
+
+- Deploy the reviewed Firestore rules and indexes, then repeat real
+  Customer/Barber multi-account lifecycle tests.
+- Decide Blaze billing, create/enable the Storage bucket, deploy Storage rules
+  and Functions, and verify gallery/FCM/server reminders live.
+- Install/run the isolated Firebase emulator tests and Functions tests in a
+  suitable Node 22 environment or through CI.
+- Execute the six Android tests and full manual QA/device matrix on real
+  emulator/device profiles.
+- Verify TalkBack, 2.0x fonts, compact/tablet/foldable layouts, dark theme,
+  offline cold/warm cache, reconnect, FCM app states, and Doze timing.
+- Create and secure a real upload key, configure signing secrets, build a signed
+  AAB, and install it through Play internal testing.
+- Replace privacy/support placeholders, define account deletion/retention,
+  capture approved screenshots/video, complete live Data Safety answers, and
+  finish Play Console submission.
+
+## Split-shift and break-hours batch
+
+Completed locally on 31 July 2026.
+
+- Replaced the one-continuous-shift limitation with up to six ordered work
+  periods per weekday; gaps are treated as barber breaks.
+- Added barber Availability controls to add, edit, and remove work periods
+  while preserving the established card design and 24-hour time input.
+- Added schema-versioned Firestore serialization with a pure codec and automatic
+  legacy migration. Existing `startTime`/`endTime` documents still load as one
+  period, and the next save writes `schemaVersion: 2` plus `workingPeriods`.
+- Kept legacy fields aligned to only the first period so older app builds do
+  not incorrectly expose an entire break as bookable time.
+- Updated customer-facing shop hours, next-available copy, and representative
+  times to understand multiple daily periods.
+- Updated slot generation so appointments are produced independently inside
+  each period and never span a break.
+- Added transaction-time schedule validation to both new bookings and
+  rescheduling. A stale client is rejected if the barber added a break after
+  that client loaded availability.
+- Expanded readiness validation for malformed, reversed, overlapping,
+  out-of-order, and excessive periods.
+- Tightened Firestore availability writes to the version-2 top-level schema and
+  added emulator tests for owner writes, customer denial, old schema denial,
+  and unknown-field denial.
+- Added codec, validation, slot-generation, and ViewModel tests covering the
+  exact `09:00-12:00`, `14:00-16:00`, `16:30-19:00` example.
+- Updated Firebase setup and manual QA documentation with migration, deployment,
+  visible testing, and stale-booking checks.
+
+Local unit verification after this feature: **300 JVM tests passed**, with no
+failures, errors, or skipped tests. Full Lint/APK/release verification is
+recorded in the final handoff after the complete working tree is rebuilt.
+
+The updated Firestore rules still require manual deployment. No Firebase
+deployment, commit, or push was performed.
+
+The consolidated current change list and the remaining work that does not
+require upgraded Firebase are saved in `docs/WHAT_WE_CHANGED.md`.
+
+## Autonomous non-Blaze closeout (31 July 2026)
+
+This section supersedes the earlier pending local-verification items above.
+
+### Completed locally
+
+- Disabled the bundled sample barber catalog in release builds while retaining
+  the clearly labelled debug-only preview. A release build now reports an empty
+  real catalog or a real listener error instead of masking it with sample data.
+- Added optional ignored release-signing configuration through
+  `keystore.properties.example`; release builds remain safely unsigned until
+  the publisher supplies a real upload key.
+- Added a Spark-compatible in-app account-deletion request flow, protected
+  `accountDeletionRequests/{uid}` rules, owner status observation, duplicate
+  submission protection, five ViewModel tests, three rule tests, an operations
+  runbook, and a ready-to-host deletion information page.
+- Completed the Compose localization-preparation pass: direct hard-coded
+  `Text` copy and hard-coded accessibility descriptions were moved to Android
+  string resources. Corrected corrupted ellipsis, apostrophe, bullet, and
+  shekel resource encoding.
+- Fixed Firebase Functions compilation against the installed Firebase Admin
+  typings by using the shared Firestore instance.
+- Made Firebase emulator files run serially so isolated setup cannot clear data
+  belonging to another test file. Read/delete rule tests now seed objects with
+  rules disabled and test only the intended operation.
+- Added reviewed pnpm lockfiles and deterministic pnpm-based GitHub Actions
+  installation for Functions and Firebase rule-test jobs.
+- Ignored the local pnpm store and Firebase emulator output.
+
+### Final verified results
+
+- Debug and release Kotlin compilation: passed.
+- JVM unit tests: **306 passed**, 0 failures, 0 errors, 0 skipped across 33
+  suites.
+- Android instrumentation and Compose tests: **6 passed** on the headless
+  `Pixel_10_Pro_XL` API 37 emulator, 0 failed and 0 skipped.
+- Firestore and Storage emulator security tests: **21 passed**, 0 failed and 0
+  skipped.
+- Cloud Functions logic tests: **29 passed**, 0 failed and 0 skipped; TypeScript
+  type-check/build passed. The locally bundled Node runtime was 24, while CI is
+  pinned to the declared Node 22 runtime.
+- Android Lint: passed with **0 errors** and 11 reviewed dependency/toolchain
+  update notices.
+- Debug APK: built successfully.
+- Minified/resource-shrunk unsigned release APK and unsigned release AAB: built successfully.
+- Generated BuildConfig check: development catalog is `true` for debug and
+  `false` for release.
+- No live Firebase deployment, billing change, commit, push, or Play Console
+  mutation was performed.
+
+### Remaining non-Blaze work
+
+The code-complete local batch is finished. These remaining items need the
+publisher, live Firebase console, real accounts, signing ownership, or Play
+Console access rather than additional unattended implementation:
+
+1. Deploy reviewed Firestore rules and indexes to `cuttime-b1fa1`, wait for
+   every index to show **Enabled**, and run two-account Customer/Barber smoke
+   tests.
+2. Confirm the final account-deletion retention policy, replace
+   `[SUPPORT_EMAIL]`, and publish `docs/account-deletion.html` plus the privacy
+   policy on durable HTTPS URLs.
+3. Create and securely back up a real upload key, create ignored
+   `keystore.properties`, generate a signed AAB, and test it through Play
+   internal testing.
+4. Complete the documented physical-device/accessibility/device matrix,
+   including TalkBack, 2.0x font, offline/reconnect, process death, battery
+   saver, and real notification timing.
+5. Capture final screenshots/demo video, replace publisher/support/privacy
+   placeholders, complete Data Safety/content rating/target audience decisions,
+   and finish Play Console submission.
+6. Review the working-tree diff, commit, push, and verify the Node 22 GitHub
+   Actions run.
+
+Live Firebase Storage gallery hosting and deployed scheduled Cloud
+Functions/server FCM reminders remain the separate Blaze-dependent workstream.
+
+### Current completion estimate
+
+- Application code and locally testable behavior: **about 94%**.
+- Full release/submission readiness including Firebase deployment, signing,
+  real-device QA, policy decisions, store assets, and Play Console: **about
+  84%**.
+
+## Responsive scheduling and flexible barber actions (31 July 2026)
+
+- Fixed public opening-hours rows for split shifts. Multi-period schedules now
+  keep the weekday on one line and render the periods below it without crushing
+  either column.
+- Fixed Review Booking summary rows so Date and other labels remain horizontal
+  while long values wrap and align cleanly.
+- Reworked Barber Dashboard appointment metadata into separate date and
+  time/duration rows, preventing narrow one-character wrapping.
+- Fixed Barber Appointment Details layout direction, Date/Time/Status/Price
+  label widths, long value wrapping, pluralized duration, and localized status
+  and currency output.
+- Barbers can now mark any upcoming appointment completed, including one whose
+  scheduled end time is still in the future. Completion atomically releases
+  its booking-slot locks so the original future time can become available.
+- Barber accounts in Customer Mode can now book their own real shop. This uses
+  the barber account identity and the normal service, availability,
+  conflict-prevention, and appointment lifecycle.
+- Added Firestore emulator coverage proving own-shop Customer Mode booking,
+  booking-slot creation, future completion, slot release, and customer denial.
+
+Verification for this increment:
+
+- Kotlin compilation and **306/306 JVM tests passed**.
+- Android Lint passed with **0 errors** (11 existing reviewed update notices).
+- Debug APK assembled successfully.
+- **23/23 Firestore and Storage emulator tests passed**.
+
+The updated firestore.rules must be deployed again before early completion
+and own-shop Customer Mode booking work against live Firebase. No new index is
+required for this increment:
+
+    cd C:\Users\Fady\Desktop\CutTime
+    firebase.cmd deploy --only firestore:rules

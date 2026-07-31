@@ -1,5 +1,6 @@
 package com.fadynemer.cutime.components
 
+import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ContentCut
@@ -11,33 +12,36 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.fadynemer.cutime.R
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeRed
 import com.fadynemer.cutime.navigation.AppRoute
 
 enum class BarberDestination(
-    val label: String,
+    @StringRes val labelRes: Int,
     val icon: ImageVector,
     val route: String
 ) {
     DASHBOARD(
-        "Dashboard",
+        R.string.nav_dashboard,
         Icons.Default.Dashboard,
         AppRoute.BarberDashboard.pattern
     ),
     SERVICES(
-        "Services",
+        R.string.nav_services,
         Icons.Default.ContentCut,
         AppRoute.BarberServices.pattern
     ),
     AVAILABILITY(
-        "Availability",
+        R.string.nav_hours,
         Icons.Default.CalendarMonth,
         AppRoute.BarberAvailability.pattern
     ),
     PROFILE(
-        "Profile",
+        R.string.nav_profile,
         Icons.Default.Person,
         AppRoute.BarberManageProfile.pattern
     )
@@ -50,6 +54,7 @@ fun BarberBottomBar(
 ) {
     NavigationBar {
         BarberDestination.entries.forEach { destination ->
+            val label = stringResource(destination.labelRes)
             NavigationBarItem(
                 selected = destination == selectedDestination,
                 onClick = {
@@ -58,11 +63,15 @@ fun BarberBottomBar(
                 icon = {
                     Icon(
                         imageVector = destination.icon,
-                        contentDescription = destination.label
+                        contentDescription = label
                     )
                 },
                 label = {
-                    Text(destination.label)
+                    Text(
+                        text = label,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = CutTimeRed,

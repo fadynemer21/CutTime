@@ -1,5 +1,9 @@
 package com.fadynemer.cutime.screens
 
+import com.fadynemer.cutime.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -78,7 +82,7 @@ fun NotificationCenterScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Notifications",
+                            text = stringResource(R.string.notifications_title),
                             color = CutTimeNavy,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -94,7 +98,7 @@ fun NotificationCenterScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.action_back),
                             tint = CutTimeNavy
                         )
                     }
@@ -106,7 +110,7 @@ fun NotificationCenterScreen(
                                 notificationViewModel::markAllRead,
                             enabled = !uiState.isMarkingAllRead
                         ) {
-                            Text("Read all")
+                            Text(stringResource(R.string.notifications_read_all))
                         }
                     }
                     IconButton(
@@ -360,7 +364,7 @@ private fun NotificationCard(
                 } else {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Delete notification",
+                        contentDescription = stringResource(R.string.content_description_delete_notification),
                         tint = CutTimeTextSecondary
                     )
                 }
@@ -405,7 +409,7 @@ private fun EmptyNotifications(
         )
         Spacer(modifier = Modifier.size(16.dp))
         Text(
-            text = "No notifications yet",
+            text = stringResource(R.string.notifications_empty),
             color = CutTimeNavy,
             fontSize = 21.sp,
             fontWeight = FontWeight.SemiBold
@@ -413,7 +417,7 @@ private fun EmptyNotifications(
         Spacer(modifier = Modifier.size(6.dp))
         Text(
             text =
-                "Booking updates and appointment reminders will appear here.",
+                stringResource(R.string.notifications_empty_hint),
             color = CutTimeTextSecondary
         )
     }
@@ -441,7 +445,7 @@ private fun NotificationErrorState(
                 containerColor = CutTimeNavy
             )
         ) {
-            Text("Retry")
+            Text(stringResource(R.string.action_retry))
         }
     }
 }

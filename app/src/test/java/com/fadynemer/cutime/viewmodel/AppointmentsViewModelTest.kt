@@ -64,6 +64,33 @@ class AppointmentsViewModelTest {
     }
 
     @Test
+    fun reconnectErrorKeepsPreviouslyLoadedAppointmentsVisible() {
+        val repository = FakeAppointmentListDataSource()
+        val viewModel = AppointmentsViewModel(repository)
+        repository.emit(
+            Result.success(
+                listOf(
+                    appointment(
+                        id = "cached",
+                        startAtMillis =
+                            System.currentTimeMillis() + 60_000L,
+                        endAtMillis =
+                            System.currentTimeMillis() + 120_000L
+                    )
+                )
+            )
+        )
+
+        repository.emit(Result.failure(Exception("Offline")))
+
+        assertEquals(
+            listOf("cached"),
+            viewModel.uiState.groups.upcoming.map { it.id }
+        )
+        assertEquals("Offline", viewModel.uiState.errorMessage)
+    }
+
+    @Test
     fun cancellation_usesAppointmentActionRepository() {
         val repository = FakeAppointmentListDataSource()
         val viewModel = AppointmentsViewModel(repository)

@@ -3,8 +3,10 @@ package com.fadynemer.cutime.util
 import com.fadynemer.cutime.model.BarberAvailability
 import com.fadynemer.cutime.model.BarberService
 import com.fadynemer.cutime.model.ManagedBarberProfile
+import com.fadynemer.cutime.model.effectiveWorkingPeriods
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.Duration
 import java.time.format.DateTimeParseException
 
 object BarberManagementValidator {
@@ -60,15 +62,35 @@ object BarberManagementValidator {
         availability.days
             .filter { day -> day.isOpen }
             .forEach { day ->
-                val start =
-                    parseTime(day.startTime)
-                        ?: return "Invalid start time for ${day.day}."
-                val end =
-                    parseTime(day.endTime)
-                        ?: return "Invalid end time for ${day.day}."
+                val periods = day.effectiveWorkingPeriods()
+                if (periods.isEmpty()) {
+                    return "Add at least one work period for ${day.day}."
+                }
+                if (periods.size > MAX_WORKING_PERIODS_PER_DAY) {
+                    return "${day.day} can have at most $MAX_WORKING_PERIODS_PER_DAY work periods."
+                }
 
-                if (!start.isBefore(end)) {
-                    return "${day.day} closing time must be after opening time."
+                var previousEnd: LocalTime? = null
+                periods.forEachIndexed { index, period ->
+                    val periodNumber = index + 1
+                    val start =
+                        parseTime(period.startTime)
+                            ?: return "Invalid start time for ${day.day} period $periodNumber."
+                    val end =
+                        parseTime(period.endTime)
+                            ?: return "Invalid end time for ${day.day} period $periodNumber."
+
+                    if (!start.isBefore(end)) {
+                        return if (periods.size == 1) {
+                            "${day.day} closing time must be after opening time."
+                        } else {
+                            "${day.day} period $periodNumber must end after it starts."
+                        }
+                    }
+                    if (previousEnd != null && start.isBefore(previousEnd)) {
+                        return "${day.day} work periods cannot overlap and must be in time order."
+                    }
+                    previousEnd = end
                 }
             }
 
@@ -95,6 +117,7 @@ object BarberManagementValidator {
         time: LocalTime,
         durationMinutes: Int
     ): Boolean {
+        if (durationMinutes <= 0) return false
         if (date.toString() in availability.blockedDates) {
             return false
         }
@@ -112,15 +135,14 @@ object BarberManagementValidator {
             return false
         }
 
-        val start = parseTime(workingDay.startTime)
-            ?: return false
-        val end = parseTime(workingDay.endTime)
-            ?: return false
-        val appointmentEnd =
-            time.plusMinutes(durationMinutes.toLong())
-
-        return !time.isBefore(start) &&
-            !appointmentEnd.isAfter(end)
+        return workingDay.effectiveWorkingPeriods().any { period ->
+            val start = parseTime(period.startTime)
+                ?: return@any false
+            val end = parseTime(period.endTime)
+                ?: return@any false
+            !time.isBefore(start) &&
+                Duration.between(time, end).toMinutes() >= durationMinutes
+        }
     }
 
     private fun parseTime(
@@ -132,4 +154,6 @@ object BarberManagementValidator {
             null
         }
     }
+
+    const val MAX_WORKING_PERIODS_PER_DAY = 6
 }

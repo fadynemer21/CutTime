@@ -1,5 +1,9 @@
 package com.fadynemer.cutime.screens
 
+import com.fadynemer.cutime.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,7 +70,7 @@ fun RatingScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Rate Your Visit",
+                        text = stringResource(R.string.rating_title),
                         color = CutTimeNavy,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -76,7 +80,7 @@ fun RatingScreen(
                         Icon(
                             imageVector =
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.action_back),
                             tint = CutTimeNavy
                         )
                     }
@@ -143,7 +147,7 @@ fun RatingScreen(
                 ) {
                     Text(
                         text =
-                            "You can rate this barber after the appointment is completed.",
+                            stringResource(R.string.rating_completed_only_hint),
                         color = CutTimeTextSecondary,
                         textAlign = TextAlign.Center
                     )
@@ -171,7 +175,7 @@ fun RatingScreen(
                     )
                     Spacer(modifier = Modifier.height(28.dp))
                     Text(
-                        text = "How was your appointment?",
+                        text = stringResource(R.string.rating_question),
                         color = CutTimeNavy,
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Medium
@@ -209,10 +213,10 @@ fun RatingScreen(
                         value = uiState.review,
                         onValueChange =
                             ratingViewModel::updateReview,
-                        label = { Text("Review (optional)") },
+                        label = { Text(stringResource(R.string.rating_review_optional)) },
                         minLines = 5,
                         supportingText = {
-                            Text("${uiState.review.length}/500")
+                            Text(stringResource(R.string.character_count, uiState.review.length, 500))
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp)
@@ -248,7 +252,7 @@ fun RatingScreen(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text("Submit Rating")
+                            Text(stringResource(R.string.rating_submit))
                         }
                     }
                 }
@@ -275,7 +279,7 @@ private fun RatingSuccess(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Thank you for your rating",
+            text = stringResource(R.string.rating_thanks),
             color = CutTimeNavy,
             fontSize = 24.sp,
             fontWeight = FontWeight.SemiBold,
@@ -289,7 +293,7 @@ private fun RatingSuccess(
                 containerColor = CutTimeNavy
             )
         ) {
-            Text("Done")
+            Text(stringResource(R.string.action_done))
         }
     }
 }
@@ -307,7 +311,7 @@ private fun ExistingRating(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "You rated this appointment",
+            text = stringResource(R.string.rating_existing),
             color = CutTimeNavy,
             fontSize = 22.sp,
             fontWeight = FontWeight.SemiBold
@@ -347,7 +351,7 @@ private fun ExistingRating(
                 containerColor = CutTimeNavy
             )
         ) {
-            Text("Done")
+            Text(stringResource(R.string.action_done))
         }
     }
 }

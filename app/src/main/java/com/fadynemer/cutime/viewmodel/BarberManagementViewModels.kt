@@ -8,10 +8,15 @@ import com.fadynemer.cutime.model.BarberAvailability
 import com.fadynemer.cutime.model.BarberService
 import com.fadynemer.cutime.model.DayAvailability
 import com.fadynemer.cutime.model.ManagedBarberProfile
+import com.fadynemer.cutime.model.WorkingPeriod
+import com.fadynemer.cutime.model.effectiveWorkingPeriods
+import com.fadynemer.cutime.model.withWorkingPeriods
 import com.fadynemer.cutime.repository.AppointmentObservation
 import com.fadynemer.cutime.repository.BarberDataSource
 import com.fadynemer.cutime.repository.BarberRepository
 import com.fadynemer.cutime.util.BarberManagementValidator
+import java.time.LocalTime
+import java.time.format.DateTimeParseException
 
 data class BarberProfileUiState(
     val isLoading: Boolean = true,
@@ -283,6 +288,97 @@ class BarberAvailabilityViewModel(
             errorMessage = null,
             successMessage = null
         )
+    }
+
+    fun updateWorkingPeriod(
+        dayName: String,
+        index: Int,
+        period: WorkingPeriod
+    ) {
+        mutateDay(dayName) { day ->
+            val periods = day.effectiveWorkingPeriods().toMutableList()
+            if (index !in periods.indices) return@mutateDay day
+            periods[index] = period
+            day.withWorkingPeriods(periods)
+        }
+    }
+
+    fun addWorkingPeriod(dayName: String) {
+        mutateDay(dayName) { day ->
+            val periods = day.effectiveWorkingPeriods().toMutableList()
+            if (
+                periods.size >=
+                    BarberManagementValidator.MAX_WORKING_PERIODS_PER_DAY
+            ) {
+                uiState = uiState.copy(
+                    errorMessage =
+                        "A day can have at most ${BarberManagementValidator.MAX_WORKING_PERIODS_PER_DAY} work periods."
+                )
+                return@mutateDay day
+            }
+
+            val previousEnd = parseTime(periods.last().endTime)
+            val nextStart = previousEnd?.plusMinutes(30)
+            val nextEnd = nextStart?.plusHours(1)
+            if (
+                nextStart == null ||
+                nextEnd == null ||
+                !nextEnd.isAfter(nextStart)
+            ) {
+                uiState = uiState.copy(
+                    errorMessage =
+                        "Shorten the last work period before adding another one."
+                )
+                return@mutateDay day
+            }
+            // LocalTime wraps at midnight, which is not supported by a day row.
+            if (!nextStart.isAfter(previousEnd)) {
+                uiState = uiState.copy(
+                    errorMessage =
+                        "There is no room for another work period on $dayName."
+                )
+                return@mutateDay day
+            }
+
+            periods += WorkingPeriod(
+                startTime = nextStart.toString(),
+                endTime = nextEnd.toString()
+            )
+            day.withWorkingPeriods(periods)
+        }
+    }
+
+    fun removeWorkingPeriod(
+        dayName: String,
+        index: Int
+    ) {
+        mutateDay(dayName) { day ->
+            val periods = day.effectiveWorkingPeriods().toMutableList()
+            if (periods.size <= 1 || index !in periods.indices) {
+                return@mutateDay day
+            }
+            periods.removeAt(index)
+            day.withWorkingPeriods(periods)
+        }
+    }
+
+    private fun mutateDay(
+        dayName: String,
+        transform: (DayAvailability) -> DayAvailability
+    ) {
+        val current =
+            uiState.availability.days.firstOrNull { day ->
+                day.day == dayName
+            } ?: return
+        updateDay(transform(current))
+    }
+
+    private fun parseTime(value: String): LocalTime? {
+        return try {
+            LocalTime.parse(value)
+        } catch (_: DateTimeParseException) {
+            null
+        }
     }
 
     fun addBlockedDate(value: String) {

@@ -1,5 +1,9 @@
 package com.fadynemer.cutime.components
 
+import com.fadynemer.cutime.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Badge
@@ -38,7 +42,7 @@ fun NotificationIconButton(
         ) {
             Icon(
                 imageVector = Icons.Default.Notifications,
-                contentDescription = "Notifications",
+                contentDescription = stringResource(R.string.content_description_notifications),
                 tint = CutTimeNavy
             )
         }

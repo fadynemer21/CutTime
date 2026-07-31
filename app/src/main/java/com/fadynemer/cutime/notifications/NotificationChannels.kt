@@ -3,34 +3,37 @@ package com.fadynemer.cutime.notifications
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.os.Build
+import com.fadynemer.cutime.R
 
 object NotificationChannels {
     const val APPOINTMENTS = "cutime_appointments"
     const val GENERAL = "cutime_general"
 
     fun create(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return
-        }
-
         val manager =
             context.getSystemService(NotificationManager::class.java)
         val appointmentChannel = NotificationChannel(
             APPOINTMENTS,
-            "Appointment updates",
+            context.getString(
+                R.string.notification_channel_appointments
+            ),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description =
-                "Booking confirmations, changes, cancellations, and reminders"
+                context.getString(
+                    R.string
+                        .notification_channel_appointments_description
+                )
             enableVibration(true)
         }
         val generalChannel = NotificationChannel(
             GENERAL,
-            "General updates",
+            context.getString(R.string.notification_channel_general),
             NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
-            description = "CuTime account and service updates"
+            description = context.getString(
+                R.string.notification_channel_general_description
+            )
         }
 
         manager.createNotificationChannels(

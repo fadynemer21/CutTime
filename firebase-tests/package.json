@@ -1,0 +1,16 @@
+{
+  "name": "cutime-firebase-rule-tests",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "test": "firebase emulators:exec --config ../firebase.json --project cuttime-b1fa1 --only firestore,storage \"node --test --test-concurrency=1 test/*.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "4.0.1",
+    "firebase": "11.10.0",
+    "firebase-tools": "14.12.0"
+  }
+}

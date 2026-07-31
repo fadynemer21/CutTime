@@ -296,6 +296,19 @@ class BarberGalleryManagementViewModelTest {
     }
 
     @Test
+    fun duplicateCaptionSaveIsIgnoredWhileRequestRuns() {
+        val image = testGalleryImage()
+        load(listOf(image))
+        viewModel.beginCaptionEdit(image)
+
+        viewModel.saveCaption()
+        viewModel.saveCaption()
+
+        assertTrue(viewModel.uiState.isSavingCaption)
+        assertEquals(1, repository.captionUpdateCount)
+    }
+
+    @Test
     fun captionSuccessClosesEditor() {
         val image = testGalleryImage()
         load(listOf(image))
@@ -305,6 +318,7 @@ class BarberGalleryManagementViewModelTest {
 
         repository.completeCaption(Result.success(Unit))
 
+        assertFalse(viewModel.uiState.isSavingCaption)
         assertNull(viewModel.uiState.editingImageId)
         assertEquals("", viewModel.uiState.captionDraft)
         assertEquals(
@@ -324,6 +338,7 @@ class BarberGalleryManagementViewModelTest {
             Result.failure(IllegalStateException("Save failed"))
         )
 
+        assertFalse(viewModel.uiState.isSavingCaption)
         assertEquals(image.id, viewModel.uiState.editingImageId)
         assertEquals(
             "Save failed",
@@ -351,6 +366,18 @@ class BarberGalleryManagementViewModelTest {
     }
 
     @Test
+    fun duplicateDeleteIsIgnoredWhileRequestRuns() {
+        load(listOf(testGalleryImage("known")))
+        viewModel.requestDelete("known")
+
+        viewModel.confirmDelete()
+        viewModel.confirmDelete()
+
+        assertTrue(viewModel.uiState.isDeleting)
+        assertEquals(1, repository.deleteCount)
+    }
+
+    @Test
     fun deleteSuccessClearsConfirmation() {
         load(listOf(testGalleryImage("known")))
         viewModel.requestDelete("known")
@@ -358,6 +385,7 @@ class BarberGalleryManagementViewModelTest {
 
         repository.completeDelete(Result.success(Unit))
 
+        assertFalse(viewModel.uiState.isDeleting)
         assertNull(viewModel.uiState.deletingImageId)
         assertEquals(
             "Image deleted.",
@@ -375,6 +403,7 @@ class BarberGalleryManagementViewModelTest {
             Result.failure(IllegalStateException("Delete failed"))
         )
 
+        assertFalse(viewModel.uiState.isDeleting)
         assertNull(viewModel.uiState.deletingImageId)
         assertEquals(
             "Delete failed",

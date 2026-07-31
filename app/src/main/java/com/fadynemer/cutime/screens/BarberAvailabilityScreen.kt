@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -23,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -33,6 +36,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -42,6 +47,9 @@ import androidx.navigation.NavController
 import com.fadynemer.cutime.components.BarberDestination
 import com.fadynemer.cutime.components.BarberManagementScaffold
 import com.fadynemer.cutime.model.DayAvailability
+import com.fadynemer.cutime.model.WorkingPeriod
+import com.fadynemer.cutime.model.effectiveWorkingPeriods
+import com.fadynemer.cutime.R
 import com.fadynemer.cutime.ui.theme.CutTimeLightGrey
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeSuccess
@@ -86,7 +94,7 @@ fun BarberAvailabilityScreen(
             ) {
                 item {
                     Text(
-                        text = "Weekly working hours",
+                        text = stringResource(R.string.availability_weekly_hours),
                         color = CutTimeNavy,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.SemiBold
@@ -94,7 +102,7 @@ fun BarberAvailabilityScreen(
                     Spacer(modifier = Modifier.height(5.dp))
                     Text(
                         text =
-                            "Times use the 24-hour HH:mm format.",
+                            stringResource(R.string.availability_time_format_hint),
                         color = CutTimeTextSecondary
                     )
                 }
@@ -108,7 +116,27 @@ fun BarberAvailabilityScreen(
                     DayAvailabilityCard(
                         day = uiState.availability.days[index],
                         onChange =
-                            availabilityViewModel::updateDay
+                            availabilityViewModel::updateDay,
+                        onPeriodChange = { periodIndex, period ->
+                            availabilityViewModel.updateWorkingPeriod(
+                                dayName =
+                                    uiState.availability.days[index].day,
+                                index = periodIndex,
+                                period = period
+                            )
+                        },
+                        onAddPeriod = {
+                            availabilityViewModel.addWorkingPeriod(
+                                uiState.availability.days[index].day
+                            )
+                        },
+                        onRemovePeriod = { periodIndex ->
+                            availabilityViewModel.removeWorkingPeriod(
+                                dayName =
+                                    uiState.availability.days[index].day,
+                                index = periodIndex
+                            )
+                        }
                     )
                 }
 
@@ -161,7 +189,7 @@ fun BarberAvailabilityScreen(
                             )
                         } else {
                             Text(
-                                text = "Save Availability",
+                                text = stringResource(R.string.availability_save),
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -175,7 +203,10 @@ fun BarberAvailabilityScreen(
 @Composable
 private fun DayAvailabilityCard(
     day: DayAvailability,
-    onChange: (DayAvailability) -> Unit
+    onChange: (DayAvailability) -> Unit,
+    onPeriodChange: (Int, WorkingPeriod) -> Unit,
+    onAddPeriod: () -> Unit,
+    onRemovePeriod: (Int) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -213,45 +244,109 @@ private fun DayAvailabilityCard(
 
             if (day.isOpen) {
                 Spacer(modifier = Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement =
-                        Arrangement.spacedBy(10.dp)
+                Text(
+                    text = stringResource(R.string.availability_break_hint),
+                    color = CutTimeTextSecondary,
+                    fontSize = 13.sp
+                )
+                day.effectiveWorkingPeriods()
+                    .forEachIndexed { index, period ->
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    R.string.availability_work_period,
+                                    index + 1
+                                ),
+                                color = CutTimeNavy,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 14.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (day.effectiveWorkingPeriods().size > 1) {
+                                IconButton(
+                                    onClick = { onRemovePeriod(index) },
+                                    modifier = Modifier.testTag(
+                                        "remove_period_${day.day}_$index"
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = stringResource(
+                                            R.string.availability_remove_period,
+                                            day.day
+                                        ),
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement =
+                                Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = period.startTime,
+                                onValueChange = { value ->
+                                    onPeriodChange(
+                                        index,
+                                        period.copy(
+                                            startTime = filterTimeInput(value)
+                                        )
+                                    )
+                                },
+                                label = {
+                                    Text(stringResource(R.string.availability_starts))
+                                },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("period_start_${day.day}_$index")
+                            )
+                            OutlinedTextField(
+                                value = period.endTime,
+                                onValueChange = { value ->
+                                    onPeriodChange(
+                                        index,
+                                        period.copy(
+                                            endTime = filterTimeInput(value)
+                                        )
+                                    )
+                                },
+                                label = {
+                                    Text(stringResource(R.string.availability_ends))
+                                },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("period_end_${day.day}_$index")
+                            )
+                        }
+                    }
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = onAddPeriod,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("add_period_${day.day}")
                 ) {
-                    OutlinedTextField(
-                        value = day.startTime,
-                        onValueChange = { value ->
-                            onChange(
-                                day.copy(
-                                    startTime =
-                                        filterTimeInput(value)
-                                )
-                            )
-                        },
-                        label = { Text("Opens") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number
-                        ),
-                        modifier = Modifier.weight(1f)
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null
                     )
-                    OutlinedTextField(
-                        value = day.endTime,
-                        onValueChange = { value ->
-                            onChange(
-                                day.copy(
-                                    endTime =
-                                        filterTimeInput(value)
-                                )
-                            )
-                        },
-                        label = { Text("Closes") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.availability_add_period))
                 }
             }
         }
@@ -270,7 +365,7 @@ private fun BlockedDatesSection(
 
     Column {
         Text(
-            text = "Blocked dates",
+            text = stringResource(R.string.availability_blocked_dates),
             color = CutTimeNavy,
             fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold,
@@ -279,7 +374,7 @@ private fun BlockedDatesSection(
         Spacer(modifier = Modifier.height(5.dp))
         Text(
             text =
-                "Add holidays or days off using YYYY-MM-DD. Saving a blocked date automatically cancels upcoming appointments on that date and releases their times.",
+                stringResource(R.string.availability_blocked_dates_hint),
             color = CutTimeTextSecondary,
             fontSize = 14.sp
         )
@@ -297,8 +392,8 @@ private fun BlockedDatesSection(
                                 character == '-'
                         }.take(10)
                 },
-                label = { Text("Blocked date") },
-                placeholder = { Text("2026-08-15") },
+                label = { Text(stringResource(R.string.availability_blocked_date)) },
+                placeholder = { Text(stringResource(R.string.availability_blocked_date_hint)) },
                 singleLine = true,
                 modifier = Modifier.weight(1f)
             )
@@ -312,7 +407,7 @@ private fun BlockedDatesSection(
                     containerColor = CutTimeNavy
                 )
             ) {
-                Text("Add")
+                Text(stringResource(R.string.action_add))
             }
         }
         Spacer(modifier = Modifier.height(10.dp))

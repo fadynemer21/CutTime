@@ -3,6 +3,7 @@ package com.fadynemer.cutime.util
 import com.fadynemer.cutime.model.NotificationType
 import com.fadynemer.cutime.model.UserNotification
 import com.fadynemer.cutime.navigation.AppRoute
+import com.fadynemer.cutime.navigation.AppRoutePolicy
 
 object NotificationRouter {
     fun destination(
@@ -41,7 +42,10 @@ object NotificationRouter {
         val explicitRoute = data["route"]
             ?.takeIf(String::isNotBlank)
 
-        if (explicitRoute != null) {
+        if (
+            explicitRoute != null &&
+            AppRoutePolicy.isAllowed(explicitRoute)
+        ) {
             return explicitRoute
         }
 

@@ -1,6 +1,7 @@
 package com.fadynemer.cutime.util
 
 import android.content.Context
+import androidx.core.content.edit
 
 object AccountModePreferences {
     private const val PREFERENCES_NAME = "cutime_account_mode"
@@ -27,9 +28,7 @@ object AccountModePreferences {
                 PREFERENCES_NAME,
                 Context.MODE_PRIVATE
             )
-            .edit()
-            .putBoolean(key(uid), enabled)
-            .apply()
+            .edit { putBoolean(key(uid), enabled) }
     }
 
     private fun key(uid: String) =

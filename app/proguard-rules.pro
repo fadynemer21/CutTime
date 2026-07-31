@@ -1,21 +1,15 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Keep useful stack-trace metadata while allowing R8 to optimize production code.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Firestore creates this model reflectively via DocumentSnapshot.toObject().
+-keep class com.fadynemer.cutime.model.UserProfile {
+    public <init>();
+    <fields>;
+}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Firebase and WorkManager provide their own consumer rules. The CuTime
+# MessagingService and Worker are also manifest/initializer referenced, but these
+# explicit rules document that they are runtime entry points.
+-keep class com.fadynemer.cutime.notifications.CuTimeMessagingService { *; }
+-keep class com.fadynemer.cutime.notifications.AppointmentReminderWorker { *; }

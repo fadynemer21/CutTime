@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Adaptive-icon XML must remain API-qualified for AAPT even though
+         CuTime's minimum supported API is currently 26. Density-specific
+         bitmap fallbacks provide the unqualified manifest resources. -->
+    <issue id="ObsoleteSdkInt">
+        <ignore path="src/main/res/mipmap-anydpi-v26" />
+    </issue>
+</lint>

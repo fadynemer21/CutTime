@@ -1,7 +1,17 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     id("com.google.gms.google-services")
+}
+
+val releaseKeystorePropertiesFile =
+    rootProject.file("keystore.properties")
+val releaseKeystoreProperties = Properties().apply {
+    if (releaseKeystorePropertiesFile.exists()) {
+        releaseKeystorePropertiesFile.inputStream().use(::load)
+    }
 }
 
 android {
@@ -23,9 +33,41 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (releaseKeystorePropertiesFile.exists()) {
+            create("release") {
+                storeFile = rootProject.file(
+                    releaseKeystoreProperties.getProperty("storeFile")
+                )
+                storePassword =
+                    releaseKeystoreProperties.getProperty("storePassword")
+                keyAlias =
+                    releaseKeystoreProperties.getProperty("keyAlias")
+                keyPassword =
+                    releaseKeystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            buildConfigField(
+                "boolean",
+                "ENABLE_DEVELOPMENT_CATALOG",
+                "true"
+            )
+        }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            buildConfigField(
+                "boolean",
+                "ENABLE_DEVELOPMENT_CATALOG",
+                "false"
+            )
+            signingConfigs.findByName("release")?.let { config ->
+                signingConfig = config
+            }
 
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -41,6 +83,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

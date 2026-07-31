@@ -114,6 +114,28 @@ class NotificationUtilitiesTest {
     }
 
     @Test
+    fun unsafeExplicitPayloadFallsBackToAppointmentTarget() {
+        assertEquals(
+            AppRoute.CustomerAppointmentDetail.create("safe"),
+            NotificationRouter.destinationFromPayload(
+                mapOf(
+                    "route" to "login",
+                    "appointmentId" to "safe"
+                )
+            )
+        )
+    }
+
+    @Test
+    fun unsafeExplicitPayloadWithoutTargetIsIgnored() {
+        assertNull(
+            NotificationRouter.destinationFromPayload(
+                mapOf("route" to "https://example.com")
+            )
+        )
+    }
+
+    @Test
     fun customerPayloadBuildsCustomerRoute() {
         assertEquals(
             AppRoute.CustomerAppointmentDetail.create("one two"),

@@ -41,9 +41,12 @@ No collections need to be created manually.
 - `bookingSlots/{barberId_date_time}` stores 15-minute collision locks.
 - `barberProfiles/{barberId}` stores the public shop profile.
 - `barberProfiles/{barberId}/services/{serviceId}` stores bookable services.
-- `barberAvailability/{barberId}` stores weekly hours and blocked dates.
+- `barberAvailability/{barberId}` stores versioned weekly work periods,
+  automatic break gaps, and blocked dates.
 - `ratings/{appointmentId}` stores the single allowed rating for a completed
   appointment.
+- `accountDeletionRequests/{userId}` stores an owner-created, administrator-
+  processed account deletion request.
 
 Appointment creation and all required slot locks are written in one Firestore
 transaction. A service reserves every 15-minute segment covered by its duration,
@@ -71,6 +74,8 @@ so preview IDs can never create live Firestore appointments.
 2. Save a shop name and description.
 3. Add, edit, and remove a service.
 4. Change weekly hours and add a blocked date.
+   To add breaks, split a day into separate work periods. For example, save
+   Wednesday as `09:00-12:00`, `14:00-16:00`, and `16:30-19:00`.
 5. Return to Dashboard and confirm all tabs remain accessible.
 6. In Firestore, confirm every created document uses the signed-in Barber UID.
 
@@ -109,6 +114,36 @@ The profile requires a valid shop name and description. At least one service
 must have a positive price and a positive 15-minute-multiple duration.
 Availability must contain all seven days and at least one open day whose start
 time is before its end time.
+
+### Break-hours schema
+
+Availability schema version 2 stores up to six ordered, non-overlapping
+`workingPeriods` per day. Gaps between periods are breaks and generate no
+customer booking slots. Each appointment must start and finish inside one
+period; it cannot cross a break.
+
+```text
+barberAvailability/{barberUid}
+  schemaVersion: 2
+  days[Wednesday]
+    startTime: "09:00"       # legacy-safe first period
+    endTime: "12:00"         # legacy-safe first period
+    workingPeriods:
+      - 09:00 -> 12:00
+      - 14:00 -> 16:00
+      - 16:30 -> 19:00
+```
+
+Existing documents without `workingPeriods` are read as one continuous period.
+The next save upgrades them automatically. Deploy the updated Firestore rules
+before saving from this build because new writes include and require
+`schemaVersion: 2`.
+
+Break-aware booking is enforced twice: the customer UI omits break slots, and
+the create/reschedule Firestore transaction re-reads the latest availability
+before reserving locks. Changing work periods does not silently cancel an
+already-booked appointment; use the appointment action if a specific existing
+booking must be cancelled.
 
 Gallery images are optional and do not block publication.
 
@@ -154,6 +189,18 @@ development previews, verify that:
 3. Save a valid name.
 4. Confirm `users/{uid}.fullName` and the Firebase Authentication display name
    both change while UID, email, and role remain unchanged.
+
+## Account deletion request verification
+
+1. Deploy the updated Firestore rules.
+2. Open Customer Profile and tap **Request account deletion**.
+3. Confirm the explanation and submit once.
+4. Confirm `accountDeletionRequests/{uid}` contains the authenticated UID,
+   email, stored role, `PENDING` status, and server request time.
+5. Confirm the same account sees the pending message after restarting the app.
+6. Confirm another account cannot read the request and the requester cannot
+   change its status or submit a replacement.
+7. Process genuine requests using `docs/ACCOUNT_DELETION_RUNBOOK.md`.
 
 ## Firestore rules live-test matrix
 

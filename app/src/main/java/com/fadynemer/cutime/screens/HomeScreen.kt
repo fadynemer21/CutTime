@@ -13,6 +13,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -31,6 +36,7 @@ import com.fadynemer.cutime.ui.theme.CutTimeLightGrey
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
 import com.fadynemer.cutime.viewmodel.HomeViewModel
 import com.fadynemer.cutime.viewmodel.NotificationBadgeViewModel
+import com.fadynemer.cutime.util.UiTestTags
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
@@ -106,7 +112,9 @@ fun HomeScreen(
                         painter = painterResource(
                             id = R.drawable.cutime_logo
                         ),
-                        contentDescription = "CutTime Logo",
+                        contentDescription = stringResource(
+                            R.string.content_description_cutime_logo
+                        ),
                         modifier = Modifier.size(150.dp)
                     )
 
@@ -124,7 +132,7 @@ fun HomeScreen(
                 }
 
                 Text(
-                    text = "Find the right barber for your next cut.",
+                    text = stringResource(R.string.home_tagline),
                     fontSize = 14.sp,
                     color = CutTimeTextSecondary,
                     textAlign = TextAlign.Center,
@@ -139,17 +147,21 @@ fun HomeScreen(
                         searchQuery = it
                     },
                     placeholder = {
-                        Text("Search barbers...")
+                        Text(stringResource(R.string.home_search_hint))
                     },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Search,
-                            contentDescription = "Search"
+                            contentDescription = stringResource(
+                                R.string.content_description_search
+                            )
                         )
                     },
                     singleLine = true,
                     shape = MaterialTheme.shapes.large,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(UiTestTags.HOME_SEARCH)
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -159,15 +171,23 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Available Barbers",
+                        text = stringResource(
+                            R.string.home_available_barbers
+                        ),
                         fontSize = 21.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = CutTimeNavy,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics { heading() }
                     )
 
                     Text(
-                        text = "${filteredBarbers.size} available",
+                        text = pluralStringResource(
+                            R.plurals.home_available_count,
+                            filteredBarbers.size,
+                            filteredBarbers.size
+                        ),
                         fontSize = 13.sp,
                         color = CutTimeTextSecondary
                     )
@@ -182,8 +202,9 @@ fun HomeScreen(
                         color = CutTimeLightGrey
                     ) {
                         Text(
-                            text =
-                                "These are development previews and cannot be booked. A real shop appears after a Barber account saves its profile, service, and availability.",
+                            text = stringResource(
+                                R.string.home_development_fallback
+                            ),
                             color = CutTimeTextSecondary,
                             fontSize = 12.sp,
                             textAlign = TextAlign.Center,
@@ -200,7 +221,10 @@ fun HomeScreen(
                     ) {
                         CircularProgressIndicator(color = CutTimeNavy)
                     }
-                } else if (uiState.errorMessage != null) {
+                } else if (
+                    uiState.errorMessage != null &&
+                    barbers.isEmpty()
+                ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -213,8 +237,13 @@ fun HomeScreen(
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(12.dp))
-                        Button(onClick = homeViewModel::retry) {
-                            Text("Try Again")
+                        Button(
+                            onClick = homeViewModel::retry,
+                            modifier = Modifier.testTag(
+                                UiTestTags.HOME_RETRY
+                            )
+                        ) {
+                            Text(stringResource(R.string.action_try_again))
                         }
                     }
                 } else if (filteredBarbers.isEmpty()) {
@@ -225,7 +254,9 @@ fun HomeScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "No barbers found",
+                            text = stringResource(
+                                R.string.home_no_barbers
+                            ),
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium,
                             color = CutTimeNavy
@@ -234,20 +265,70 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text = "Try searching for a different name.",
+                            text = stringResource(
+                                R.string.home_no_barbers_hint
+                            ),
                             color = CutTimeTextSecondary,
                             textAlign = TextAlign.Center
                         )
                     }
                 } else {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .testTag(UiTestTags.HOME_CATALOG),
                         verticalArrangement =
                             Arrangement.spacedBy(14.dp),
                         contentPadding = PaddingValues(
                             bottom = 24.dp
                         )
                     ) {
+                        uiState.errorMessage?.let { message ->
+                            item {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape =
+                                        MaterialTheme.shapes.medium,
+                                    color = MaterialTheme
+                                        .colorScheme.errorContainer
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(
+                                                R.string.home_showing_saved
+                                            ),
+                                            color = MaterialTheme
+                                                .colorScheme
+                                                .onErrorContainer,
+                                            fontWeight =
+                                                FontWeight.SemiBold
+                                        )
+                                        Text(
+                                            text = message,
+                                            color = MaterialTheme
+                                                .colorScheme
+                                                .onErrorContainer,
+                                            fontSize = 13.sp
+                                        )
+                                        TextButton(
+                                            onClick =
+                                                homeViewModel::retry,
+                                            modifier = Modifier.align(
+                                                Alignment.End
+                                            )
+                                        ) {
+                                            Text(
+                                                stringResource(
+                                                    R.string.action_retry
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         items(
                             items = filteredBarbers,
                             key = { barberShop ->

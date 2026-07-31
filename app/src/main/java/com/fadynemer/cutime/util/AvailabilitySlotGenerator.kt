@@ -2,6 +2,7 @@ package com.fadynemer.cutime.util
 
 import com.fadynemer.cutime.model.BarberAvailability
 import com.fadynemer.cutime.model.DayAvailability
+import com.fadynemer.cutime.model.effectiveWorkingPeriods
 import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalTime
@@ -44,49 +45,50 @@ object AvailabilitySlotGenerator {
             return emptyList()
         }
 
-        val opening =
-            parseTime(workingDay.startTime)
-                ?: return emptyList()
-        val closing =
-            parseTime(workingDay.endTime)
-                ?: return emptyList()
         val now =
             LocalTime.now(clock)
         val today =
             LocalDate.now(clock)
         val result = mutableListOf<GeneratedSlot>()
-        var candidate = opening
+        workingDay.effectiveWorkingPeriods().forEach { period ->
+            val opening = parseTime(period.startTime)
+                ?: return@forEach
+            val closing = parseTime(period.endTime)
+                ?: return@forEach
+            var candidate = opening
 
-        while (
-            !candidate
-                .plusMinutes(durationMinutes.toLong())
-                .isAfter(closing)
-        ) {
-            val segments =
-                segmentsFor(
-                    start = candidate,
-                    durationMinutes = durationMinutes,
-                    intervalMinutes = intervalMinutes
+            while (
+                !candidate
+                    .plusMinutes(durationMinutes.toLong())
+                    .isAfter(closing)
+            ) {
+                val segments =
+                    segmentsFor(
+                        start = candidate,
+                        durationMinutes = durationMinutes,
+                        intervalMinutes = intervalMinutes
+                    )
+                val inFuture =
+                    date.isAfter(today) ||
+                        (
+                            date == today &&
+                                candidate.isAfter(now)
+                            )
+                val hasConflict =
+                    segments.any(occupiedTimes::contains)
+
+                result += GeneratedSlot(
+                    time = candidate.format(timeFormatter),
+                    occupiedSegments = segments,
+                    isAvailable = inFuture && !hasConflict
                 )
-            val inFuture =
-                date.isAfter(today) ||
-                    (
-                        date == today &&
-                            candidate.isAfter(now)
-                        )
-            val hasConflict =
-                segments.any(occupiedTimes::contains)
-
-            result += GeneratedSlot(
-                time = candidate.format(timeFormatter),
-                occupiedSegments = segments,
-                isAvailable = inFuture && !hasConflict
-            )
-            candidate =
-                candidate.plusMinutes(intervalMinutes.toLong())
+                candidate =
+                    candidate.plusMinutes(intervalMinutes.toLong())
+            }
         }
 
-        return result
+        return result.distinctBy(GeneratedSlot::time)
+            .sortedBy(GeneratedSlot::time)
     }
 
     fun availableTimes(

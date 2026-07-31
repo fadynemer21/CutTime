@@ -13,3 +13,18 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Release signing material and generated release bundles must never be committed.
+/keystore.properties
+*.jks
+*.keystore
+*.aab
+/app/release/
+
+# Firebase emulator output and local-only configuration.
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.firebase/
+**/node_modules/
+/.pnpm-store/

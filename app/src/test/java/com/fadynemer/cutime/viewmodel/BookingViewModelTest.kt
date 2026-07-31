@@ -75,6 +75,35 @@ class BookingViewModelTest {
     }
 
     @Test
+    fun submissionIsIgnoredUntilReviewStep() {
+        val repository = FakeBookingRepository()
+        val viewModel = BookingViewModel(repository)
+        val barber = SampleBarberData.barberShops.first()
+        viewModel.selectService("service_1")
+        viewModel.selectDate("2099-07-30")
+        viewModel.selectTime("14:30")
+
+        viewModel.submitBooking(barber)
+
+        assertFalse(viewModel.uiState.isSubmitting)
+        assertEquals(0, repository.submissionCount)
+    }
+
+    @Test
+    fun duplicateSubmissionIsIgnoredWhileRequestIsRunning() {
+        val repository = FakeBookingRepository()
+        val viewModel = BookingViewModel(repository)
+        val barber = SampleBarberData.barberShops.first()
+        selectCompleteBooking(viewModel)
+
+        viewModel.submitBooking(barber)
+        viewModel.submitBooking(barber)
+
+        assertTrue(viewModel.uiState.isSubmitting)
+        assertEquals(1, repository.submissionCount)
+    }
+
+    @Test
     fun successfulSubmission_exposesCreatedAppointmentId() {
         val repository = FakeBookingRepository()
         val viewModel = BookingViewModel(repository)
@@ -148,11 +177,14 @@ class BookingViewModelTest {
 
         private var callback:
             ((Result<String>) -> Unit)? = null
+        var submissionCount = 0
+            private set
 
         override fun createAppointment(
             request: BookingRequest,
             onResult: (Result<String>) -> Unit
         ) {
+            submissionCount += 1
             callback = onResult
         }
 

@@ -50,7 +50,7 @@ class HomeViewModel(
                         )
                     }
                     .onFailure { error ->
-                        uiState = HomeUiState(
+                        uiState = uiState.copy(
                             isLoading = false,
                             errorMessage =
                                 error.localizedMessage

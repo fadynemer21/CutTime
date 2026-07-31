@@ -4,6 +4,8 @@ import com.fadynemer.cutime.model.AvailabilitySaveResult
 import com.fadynemer.cutime.model.BarberAvailability
 import com.fadynemer.cutime.model.BarberService
 import com.fadynemer.cutime.model.ManagedBarberProfile
+import com.fadynemer.cutime.model.WorkingPeriod
+import com.fadynemer.cutime.model.effectiveWorkingPeriods
 import com.fadynemer.cutime.repository.AppointmentObservation
 import com.fadynemer.cutime.repository.BarberDataSource
 import org.junit.Assert.assertEquals
@@ -73,6 +75,67 @@ class BarberAvailabilityViewModelTest {
         assertEquals(
             "Availability saved.",
             viewModel.uiState.successMessage
+        )
+    }
+
+    @Test
+    fun barberCanBuildThreePeriodsWithTwoBreaks() {
+        val repository = FakeAvailabilityRepository(
+            saveResult = Result.success(AvailabilitySaveResult())
+        )
+        val viewModel = BarberAvailabilityViewModel(repository)
+
+        viewModel.updateWorkingPeriod(
+            "Wednesday",
+            0,
+            WorkingPeriod("09:00", "12:00")
+        )
+        viewModel.addWorkingPeriod("Wednesday")
+        viewModel.updateWorkingPeriod(
+            "Wednesday",
+            1,
+            WorkingPeriod("14:00", "16:00")
+        )
+        viewModel.addWorkingPeriod("Wednesday")
+        viewModel.updateWorkingPeriod(
+            "Wednesday",
+            2,
+            WorkingPeriod("16:30", "19:00")
+        )
+
+        val periods = viewModel.uiState.availability.days
+            .first { it.day == "Wednesday" }
+            .effectiveWorkingPeriods()
+        assertEquals(
+            listOf(
+                WorkingPeriod("09:00", "12:00"),
+                WorkingPeriod("14:00", "16:00"),
+                WorkingPeriod("16:30", "19:00")
+            ),
+            periods
+        )
+    }
+
+    @Test
+    fun removingAWorkingPeriod_preservesRemainingPeriods() {
+        val repository = FakeAvailabilityRepository(
+            saveResult = Result.success(AvailabilitySaveResult())
+        )
+        val viewModel = BarberAvailabilityViewModel(repository)
+        viewModel.updateWorkingPeriod(
+            "Wednesday",
+            0,
+            WorkingPeriod("09:00", "12:00")
+        )
+        viewModel.addWorkingPeriod("Wednesday")
+
+        viewModel.removeWorkingPeriod("Wednesday", 1)
+
+        assertEquals(
+            listOf(WorkingPeriod("09:00", "12:00")),
+            viewModel.uiState.availability.days
+                .first { it.day == "Wednesday" }
+                .effectiveWorkingPeriods()
         )
     }
 

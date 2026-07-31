@@ -1,5 +1,9 @@
 package com.fadynemer.cutime.screens
 
+import com.fadynemer.cutime.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -88,7 +92,7 @@ fun RescheduleScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Reschedule",
+                        text = stringResource(R.string.reschedule_title),
                         color = CutTimeNavy,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -98,7 +102,7 @@ fun RescheduleScreen(
                         Icon(
                             imageVector =
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.action_back),
                             tint = CutTimeNavy
                         )
                     }
@@ -135,7 +139,7 @@ fun RescheduleScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Appointment rescheduled",
+                        text = stringResource(R.string.reschedule_success),
                         color = CutTimeNavy,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.SemiBold
@@ -148,7 +152,7 @@ fun RescheduleScreen(
                             containerColor = CutTimeNavy
                         )
                     ) {
-                        Text("View Appointment")
+                        Text(stringResource(R.string.action_view_appointment))
                     }
                 }
             }
@@ -232,7 +236,7 @@ fun RescheduleScreen(
 
                     item {
                         Text(
-                            text = "Choose a new date",
+                            text = stringResource(R.string.reschedule_choose_date),
                             color = CutTimeNavy,
                             fontSize = 19.sp,
                             fontWeight = FontWeight.SemiBold
@@ -266,7 +270,7 @@ fun RescheduleScreen(
 
                     item {
                         Text(
-                            text = "Choose a new time",
+                            text = stringResource(R.string.reschedule_choose_time),
                             color = CutTimeNavy,
                             fontSize = 19.sp,
                             fontWeight = FontWeight.SemiBold
@@ -276,7 +280,7 @@ fun RescheduleScreen(
                         when {
                             uiState.selectedDate == null ->
                                 Text(
-                                    "Select a date first.",
+                                    stringResource(R.string.reschedule_select_date_first),
                                     color = CutTimeTextSecondary
                                 )
 
@@ -289,7 +293,7 @@ fun RescheduleScreen(
 
                             times.isEmpty() ->
                                 Text(
-                                    "No available times on this date.",
+                                    stringResource(R.string.reschedule_no_times),
                                     color = CutTimeTextSecondary
                                 )
 
@@ -343,7 +347,7 @@ fun RescheduleScreen(
                                     strokeWidth = 2.dp
                                 )
                             } else {
-                                Text("Confirm New Time")
+                                Text(stringResource(R.string.reschedule_confirm_time))
                             }
                         }
                     }

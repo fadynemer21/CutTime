@@ -2,6 +2,7 @@ package com.fadynemer.cutime.util
 
 import com.fadynemer.cutime.model.BarberAvailability
 import com.fadynemer.cutime.model.DayAvailability
+import com.fadynemer.cutime.model.WorkingPeriod
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -336,6 +337,44 @@ class AvailabilitySlotGeneratorTest {
             listOf("09:00", "09:15", "09:30"),
             result
         )
+    }
+
+    @Test
+    fun multipleWorkingPeriods_excludeBreaksFromGeneratedSlots() {
+        val wednesday = LocalDate.parse("2030-01-09")
+        val availability = BarberAvailability(
+            days = listOf(
+                DayAvailability(
+                    day = "Wednesday",
+                    isOpen = true,
+                    startTime = "09:00",
+                    endTime = "12:00",
+                    workingPeriods = listOf(
+                        WorkingPeriod("09:00", "12:00"),
+                        WorkingPeriod("14:00", "16:00"),
+                        WorkingPeriod("16:30", "19:00")
+                    )
+                )
+            )
+        )
+
+        val slots = AvailabilitySlotGenerator.availableTimes(
+            availability = availability,
+            date = wednesday,
+            durationMinutes = 30,
+            occupiedTimes = emptySet(),
+            clock = clock
+        )
+
+        assertTrue("11:30" in slots)
+        assertFalse("11:45" in slots)
+        assertFalse("12:00" in slots)
+        assertFalse("13:45" in slots)
+        assertTrue("14:00" in slots)
+        assertTrue("15:30" in slots)
+        assertFalse("16:00" in slots)
+        assertTrue("16:30" in slots)
+        assertTrue("18:30" in slots)
     }
 
     private fun availability(

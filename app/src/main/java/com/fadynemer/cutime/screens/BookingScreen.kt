@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,6 +45,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -52,12 +58,14 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fadynemer.cutime.model.BarberService
 import com.fadynemer.cutime.model.BarberShop
+import com.fadynemer.cutime.R
 import com.fadynemer.cutime.ui.theme.CutTimeLightGrey
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeRed
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
 import com.fadynemer.cutime.util.AppointmentDateTime
 import com.fadynemer.cutime.util.AvailabilitySlotGenerator
+import com.fadynemer.cutime.util.UiTestTags
 import com.fadynemer.cutime.viewmodel.BookingAvailabilityViewModel
 import com.fadynemer.cutime.viewmodel.BookingUiState
 import com.fadynemer.cutime.viewmodel.BookingViewModel
@@ -110,13 +118,19 @@ fun BookingScreen(
                             text =
                                 when {
                                     uiState.createdAppointmentId != null ->
-                                        "Booking Confirmed"
+                                        stringResource(
+                                            R.string.booking_confirmed_title
+                                        )
 
                                     uiState.isReviewing ->
-                                        "Review Booking"
+                                        stringResource(
+                                            R.string.booking_review_title
+                                        )
 
                                     else ->
-                                        "Book Appointment"
+                                        stringResource(
+                                            R.string.booking_title
+                                        )
                                 },
                             color = CutTimeNavy,
                             fontWeight = FontWeight.SemiBold
@@ -138,7 +152,9 @@ fun BookingScreen(
                             Icon(
                                 imageVector =
                                     Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(
+                                    R.string.action_back
+                                ),
                                 tint = CutTimeNavy
                             )
                         }
@@ -235,15 +251,18 @@ private fun DevelopmentBookingUnavailable(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Preview barber",
+            text = stringResource(
+                R.string.booking_preview_unavailable
+            ),
             color = CutTimeNavy,
             fontSize = 22.sp,
             fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text =
-                "This is bundled development data, not a Barber account. Create a Barber account and save its shop profile, service, and availability before customers can book it.",
+            text = stringResource(
+                R.string.booking_preview_unavailable_message
+            ),
             color = CutTimeTextSecondary,
             textAlign = TextAlign.Center
         )
@@ -254,7 +273,7 @@ private fun DevelopmentBookingUnavailable(
                 containerColor = CutTimeNavy
             )
         ) {
-            Text("Back")
+            Text(stringResource(R.string.action_back))
         }
     }
 }
@@ -272,8 +291,9 @@ private fun BookingForm(
     onReview: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dateOptions = remember {
-        createDateOptions()
+    val todayLabel = stringResource(R.string.booking_today)
+    val dateOptions = remember(todayLabel) {
+        createDateOptions(todayLabel)
     }
     val selectedService = barberShop.services.find { service ->
         service.id == uiState.selectedServiceId
@@ -294,7 +314,9 @@ private fun BookingForm(
             .orEmpty()
 
     LazyColumn(
-        modifier = modifier.navigationBarsPadding(),
+        modifier = modifier
+            .navigationBarsPadding()
+            .testTag(UiTestTags.BOOKING_FORM),
         contentPadding = PaddingValues(
             start = 20.dp,
             end = 20.dp,
@@ -312,7 +334,7 @@ private fun BookingForm(
             )
             Spacer(modifier = Modifier.height(5.dp))
             Text(
-                text = "Choose a service, date, and available time.",
+                text = stringResource(R.string.booking_choose_prompt),
                 color = CutTimeTextSecondary
             )
         }
@@ -321,7 +343,9 @@ private fun BookingForm(
             Column {
                 BookingSectionTitle(
                     number = "1",
-                    title = "Select a service"
+                    title = stringResource(
+                        R.string.booking_select_service
+                    )
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -346,7 +370,9 @@ private fun BookingForm(
             Column {
                 BookingSectionTitle(
                     number = "2",
-                    title = "Select a date"
+                    title = stringResource(
+                        R.string.booking_select_date
+                    )
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -374,15 +400,21 @@ private fun BookingForm(
             Column {
                 BookingSectionTitle(
                     number = "3",
-                    title = "Select a time"
+                    title = stringResource(
+                        R.string.booking_select_time
+                    )
                 )
                 Spacer(modifier = Modifier.height(5.dp))
                 Text(
                     text =
                         if (uiState.selectedDate == null) {
-                            "Choose a date to view available times."
+                            stringResource(
+                                R.string.booking_choose_date_for_times
+                            )
                         } else {
-                            "Available times for the selected date"
+                            stringResource(
+                                R.string.booking_times_for_date
+                            )
                         },
                     color = CutTimeTextSecondary,
                     fontSize = 14.sp
@@ -418,14 +450,16 @@ private fun BookingForm(
                 } else if (selectedService == null) {
                     Text(
                         text =
-                            "Choose a service to calculate available times.",
+                            stringResource(
+                                R.string.booking_choose_service_for_times
+                            ),
                         color = CutTimeTextSecondary,
                         fontSize = 14.sp
                     )
                 } else if (availableTimes.isEmpty()) {
                     Text(
                         text =
-                            "No remaining times are available on this date.",
+                            stringResource(R.string.booking_no_times),
                         color = CutTimeTextSecondary,
                         fontSize = 14.sp
                     )
@@ -456,14 +490,17 @@ private fun BookingForm(
                 enabled = uiState.canReview,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
+                    .heightIn(min = 52.dp)
+                    .testTag(UiTestTags.BOOKING_REVIEW),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = CutTimeNavy
                 )
             ) {
                 Text(
-                    text = "Review Booking",
+                    text = stringResource(
+                        R.string.booking_review_action
+                    ),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -481,6 +518,9 @@ private fun ServiceOption(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .testTag(
+                UiTestTags.SERVICE_OPTION_PREFIX + service.id
+            )
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
@@ -518,14 +558,21 @@ private fun ServiceOption(
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "${service.durationMinutes} minutes",
+                    text = pluralStringResource(
+                        R.plurals.booking_duration,
+                        service.durationMinutes,
+                        service.durationMinutes
+                    ),
                     color = CutTimeTextSecondary,
                     fontSize = 13.sp
                 )
             }
 
             Text(
-                text = "₪${service.price}",
+                text = stringResource(
+                    R.string.booking_price,
+                    service.price
+                ),
                 color = CutTimeNavy,
                 fontWeight = FontWeight.SemiBold
             )
@@ -542,6 +589,9 @@ private fun DateOption(
     Surface(
         modifier = Modifier
             .width(88.dp)
+            .testTag(
+                UiTestTags.DATE_OPTION_PREFIX + option.value
+            )
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         color =
@@ -605,10 +655,12 @@ private fun TimeOption(
     onClick: () -> Unit
 ) {
     Surface(
-        modifier = Modifier.clickable(
-            enabled = enabled,
-            onClick = onClick
-        ),
+        modifier = Modifier
+            .testTag(UiTestTags.TIME_OPTION_PREFIX + time)
+            .clickable(
+                enabled = enabled,
+                onClick = onClick
+            ),
         shape = RoundedCornerShape(12.dp),
         color =
             if (selected) {
@@ -647,7 +699,9 @@ private fun BookingReview(
     }
 
     LazyColumn(
-        modifier = modifier.navigationBarsPadding(),
+        modifier = modifier
+            .navigationBarsPadding()
+            .testTag(UiTestTags.BOOKING_REVIEW),
         contentPadding = PaddingValues(
             start = 20.dp,
             end = 20.dp,
@@ -665,7 +719,7 @@ private fun BookingReview(
             )
             Spacer(modifier = Modifier.height(14.dp))
             Text(
-                text = "Check your appointment",
+                text = stringResource(R.string.booking_check_details),
                 color = CutTimeNavy,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -673,7 +727,9 @@ private fun BookingReview(
             )
             Spacer(modifier = Modifier.height(7.dp))
             Text(
-                text = "Review the details before the appointment is submitted.",
+                text = stringResource(
+                    R.string.booking_check_details_hint
+                ),
                 color = CutTimeTextSecondary,
                 textAlign = TextAlign.Center
             )
@@ -690,22 +746,50 @@ private fun BookingReview(
                 )
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    SummaryRow("Barber", barberShop.name)
-                    SummaryRow("Service", selectedService.name)
                     SummaryRow(
-                        "Duration",
-                        "${selectedService.durationMinutes} minutes"
+                        stringResource(
+                            R.string.booking_summary_barber
+                        ),
+                        barberShop.name
                     )
                     SummaryRow(
-                        "Date",
+                        stringResource(
+                            R.string.booking_summary_service
+                        ),
+                        selectedService.name
+                    )
+                    SummaryRow(
+                        stringResource(
+                            R.string.booking_summary_duration
+                        ),
+                        pluralStringResource(
+                            R.plurals.booking_duration,
+                            selectedService.durationMinutes,
+                            selectedService.durationMinutes
+                        )
+                    )
+                    SummaryRow(
+                        stringResource(
+                            R.string.booking_summary_date
+                        ),
                         AppointmentDateTime.formatDateForDisplay(
                             uiState.selectedDate.orEmpty()
                         )
                     )
-                    SummaryRow("Time", uiState.selectedTime.orEmpty())
                     SummaryRow(
-                        label = "Total",
-                        value = "₪${selectedService.price}",
+                        stringResource(
+                            R.string.booking_summary_time
+                        ),
+                        uiState.selectedTime.orEmpty()
+                    )
+                    SummaryRow(
+                        label = stringResource(
+                            R.string.booking_summary_total
+                        ),
+                        value = stringResource(
+                            R.string.booking_price,
+                            selectedService.price
+                        ),
                         emphasized = true
                     )
                 }
@@ -736,7 +820,8 @@ private fun BookingReview(
                 enabled = !uiState.isSubmitting,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
+                    .heightIn(min = 52.dp)
+                    .testTag(UiTestTags.BOOKING_SUBMIT),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = CutTimeNavy
@@ -750,7 +835,9 @@ private fun BookingReview(
                     )
                 } else {
                     Text(
-                        text = "Confirm Appointment",
+                        text = stringResource(
+                            R.string.booking_confirm_action
+                        ),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -764,10 +851,10 @@ private fun BookingReview(
                 enabled = !uiState.isSubmitting,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
+                    .heightIn(min = 50.dp),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                Text("Edit Selection")
+                Text(stringResource(R.string.action_edit_selection))
             }
         }
     }
@@ -788,7 +875,8 @@ private fun BookingSuccess(
     Column(
         modifier = modifier
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 24.dp)
+            .testTag(UiTestTags.BOOKING_SUCCESS),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -800,7 +888,7 @@ private fun BookingSuccess(
         )
         Spacer(modifier = Modifier.height(18.dp))
         Text(
-            text = "Appointment booked",
+            text = stringResource(R.string.booking_success),
             color = CutTimeNavy,
             fontSize = 26.sp,
             fontWeight = FontWeight.SemiBold,
@@ -808,8 +896,10 @@ private fun BookingSuccess(
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text =
-                "Your appointment with ${barberShop.name} is confirmed.",
+            text = stringResource(
+                R.string.booking_success_message,
+                barberShop.name
+            ),
             color = CutTimeTextSecondary,
             textAlign = TextAlign.Center
         )
@@ -824,17 +914,26 @@ private fun BookingSuccess(
             elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
-                SummaryRow("Service", selectedService.name)
                 SummaryRow(
-                    "Date",
+                    stringResource(R.string.booking_summary_service),
+                    selectedService.name
+                )
+                SummaryRow(
+                    stringResource(R.string.booking_summary_date),
                     AppointmentDateTime.formatDateForDisplay(
                         uiState.selectedDate.orEmpty()
                     )
                 )
-                SummaryRow("Time", uiState.selectedTime.orEmpty())
                 SummaryRow(
-                    "Total",
-                    "₪${selectedService.price}",
+                    stringResource(R.string.booking_summary_time),
+                    uiState.selectedTime.orEmpty()
+                )
+                SummaryRow(
+                    stringResource(R.string.booking_summary_total),
+                    stringResource(
+                        R.string.booking_price,
+                        selectedService.price
+                    ),
                     emphasized = true
                 )
             }
@@ -846,14 +945,16 @@ private fun BookingSuccess(
             onClick = onViewAppointments,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
+                .heightIn(min = 52.dp),
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = CutTimeNavy
             )
         ) {
             Text(
-                text = "View My Appointments",
+                text = stringResource(
+                    R.string.booking_view_appointments
+                ),
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -875,11 +976,15 @@ private fun SummaryRow(
         Text(
             text = label,
             color = CutTimeTextSecondary,
-            modifier = Modifier.weight(1f)
+            maxLines = 1,
+            modifier = Modifier.width(92.dp)
         )
         Text(
             text = value,
             color = CutTimeNavy,
+            textAlign = TextAlign.End,
+            lineHeight = 22.sp,
+            modifier = Modifier.weight(1f),
             fontWeight =
                 if (emphasized) {
                     FontWeight.Bold
@@ -918,7 +1023,8 @@ private fun BookingSectionTitle(
             text = title,
             color = CutTimeNavy,
             fontSize = 20.sp,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.semantics { heading() }
         )
     }
 }
@@ -941,14 +1047,14 @@ private fun BookingBarberNotFound(
         )
         Spacer(modifier = Modifier.height(14.dp))
         Text(
-            text = "Booking unavailable",
+            text = stringResource(R.string.booking_not_found),
             color = CutTimeNavy,
             fontSize = 22.sp,
             fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "This barber could not be found.",
+            text = stringResource(R.string.booking_not_found_message),
             color = CutTimeTextSecondary,
             textAlign = TextAlign.Center
         )
@@ -959,12 +1065,14 @@ private fun BookingBarberNotFound(
                 containerColor = CutTimeNavy
             )
         ) {
-            Text("Go Back")
+            Text(stringResource(R.string.action_go_back))
         }
     }
 }
 
-private fun createDateOptions(): List<BookingDateOption> {
+private fun createDateOptions(
+    todayLabel: String
+): List<BookingDateOption> {
     val dayFormatter =
         DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)
     val monthFormatter =
@@ -977,7 +1085,7 @@ private fun createDateOptions(): List<BookingDateOption> {
             value = date.format(DateTimeFormatter.ISO_LOCAL_DATE),
             dayName =
                 if (dayOffset == 0L) {
-                    "Today"
+                    todayLabel
                 } else {
                     date.format(dayFormatter)
                 },

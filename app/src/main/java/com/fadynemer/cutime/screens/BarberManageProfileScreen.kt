@@ -1,5 +1,9 @@
 package com.fadynemer.cutime.screens
 
+import com.fadynemer.cutime.R
+
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -70,7 +74,7 @@ fun BarberManageProfileScreen(
                     .padding(20.dp)
             ) {
                 Text(
-                    text = "Public barber profile",
+                    text = stringResource(R.string.profile_public_title),
                     color = CutTimeNavy,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.SemiBold
@@ -78,7 +82,7 @@ fun BarberManageProfileScreen(
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text =
-                        "This information will be shown to customers.",
+                        stringResource(R.string.profile_public_hint),
                     color = CutTimeTextSecondary
                 )
                 Spacer(modifier = Modifier.height(22.dp))
@@ -86,7 +90,7 @@ fun BarberManageProfileScreen(
                 OutlinedTextField(
                     value = uiState.shopName,
                     onValueChange = profileViewModel::updateShopName,
-                    label = { Text("Shop name") },
+                    label = { Text(stringResource(R.string.profile_shop_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp)
@@ -95,10 +99,10 @@ fun BarberManageProfileScreen(
                 OutlinedTextField(
                     value = uiState.description,
                     onValueChange = profileViewModel::updateDescription,
-                    label = { Text("Description") },
+                    label = { Text(stringResource(R.string.profile_description)) },
                     minLines = 5,
                     supportingText = {
-                        Text("${uiState.description.length}/500")
+                        Text(stringResource(R.string.character_count, uiState.description.length, 500))
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp)
@@ -139,7 +143,7 @@ fun BarberManageProfileScreen(
                         )
                     } else {
                         Text(
-                            text = "Save Profile",
+                            text = stringResource(R.string.profile_save),
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -156,7 +160,7 @@ fun BarberManageProfileScreen(
                         .fillMaxWidth()
                         .height(50.dp)
                 ) {
-                    Text("Manage Gallery")
+                    Text(stringResource(R.string.profile_manage_gallery))
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -187,7 +191,7 @@ fun BarberManageProfileScreen(
                         .fillMaxWidth()
                         .height(50.dp)
                 ) {
-                    Text("Switch to Customer Mode")
+                    Text(stringResource(R.string.profile_switch_customer_mode))
                 }
             }
         }

@@ -2,9 +2,11 @@ package com.fadynemer.cutime.notifications
 
 import com.fadynemer.cutime.repository.NotificationRepository
 import com.fadynemer.cutime.util.NotificationRouter
+import com.fadynemer.cutime.R
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
+@Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
 class CuTimeMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
@@ -21,7 +23,7 @@ class CuTimeMessagingService : FirebaseMessagingService() {
         val title =
             message.notification?.title
                 ?: data["title"]
-                ?: "CuTime"
+                ?: getString(R.string.notification_default_title)
         val body =
             message.notification?.body
                 ?: data["body"]
@@ -42,6 +44,10 @@ class CuTimeMessagingService : FirebaseMessagingService() {
             route = route,
             channelId =
                 data["channelId"]
+                    ?.takeIf {
+                        it == NotificationChannels.APPOINTMENTS ||
+                            it == NotificationChannels.GENERAL
+                    }
                     ?: NotificationChannels.APPOINTMENTS
         )
     }

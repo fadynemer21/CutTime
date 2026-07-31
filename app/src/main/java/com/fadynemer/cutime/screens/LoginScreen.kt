@@ -1,5 +1,7 @@
 package com.fadynemer.cutime.screens
 
+import androidx.compose.ui.res.stringResource
+
 import android.util.Patterns
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -7,7 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -120,8 +122,9 @@ fun LoginScreen(
                     }
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
+                            imageVector =
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.action_back),
                         tint = CutTimeNavy
                     )
                 }
@@ -133,14 +136,14 @@ fun LoginScreen(
                 painter = painterResource(
                     id = R.drawable.cutime_logo
                 ),
-                contentDescription = "CutTime Logo",
+                contentDescription = stringResource(R.string.content_description_cutime_logo),
                 modifier = Modifier.size(120.dp)
             )
 
             Spacer(modifier = Modifier.height(0.dp))
 
             Text(
-                text = "Welcome Back",
+                text = stringResource(R.string.login_welcome),
                 fontSize = 28.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = CutTimeNavy
@@ -149,7 +152,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Sign in to continue booking appointments",
+                text = stringResource(R.string.login_subtitle),
                 fontSize = 14.sp,
                 color = CutTimeTextSecondary,
                 modifier = Modifier.fillMaxWidth(),
@@ -166,16 +169,16 @@ fun LoginScreen(
                     loginViewModel.clearMessages()
                 },
                 label = {
-                    Text("Email")
+                    Text(stringResource(R.string.field_email))
                 },
                 placeholder = {
-                    Text("Enter your email")
+                    Text(stringResource(R.string.field_email_hint))
                 },
                 singleLine = true,
                 isError = emailError,
                 supportingText = {
                     if (emailError) {
-                        Text("Enter a valid email address.")
+                        Text(stringResource(R.string.field_email_invalid))
                     }
                 },
                 keyboardOptions = KeyboardOptions(
@@ -194,16 +197,16 @@ fun LoginScreen(
                     loginViewModel.clearMessages()
                 },
                 label = {
-                    Text("Password")
+                    Text(stringResource(R.string.field_password))
                 },
                 placeholder = {
-                    Text("Enter your password")
+                    Text(stringResource(R.string.field_password_login_hint))
                 },
                 singleLine = true,
                 isError = passwordError,
                 supportingText = {
                     if (passwordError) {
-                        Text("Password is required.")
+                        Text(stringResource(R.string.field_password_required))
                     }
                 },
                 shape = RoundedCornerShape(14.dp),
@@ -244,7 +247,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Forgot password?",
+                text = stringResource(R.string.login_forgot_password),
                 color = CutTimeNavy,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier
@@ -319,7 +322,7 @@ fun LoginScreen(
                     )
                 } else {
                     Text(
-                        text = "Login",
+                        text = stringResource(R.string.login_action),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -334,7 +337,7 @@ fun LoginScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Don't have an account?",
+                    text = stringResource(R.string.login_no_account),
                     color = CutTimeTextSecondary,
                     fontSize = 13.sp,
                     maxLines = 1
@@ -343,7 +346,7 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.width(6.dp))
 
                 Text(
-                    text = "Create Account",
+                    text = stringResource(R.string.register_action),
                     color = CutTimeNavy,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,

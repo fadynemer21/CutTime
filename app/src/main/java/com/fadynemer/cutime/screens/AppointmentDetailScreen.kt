@@ -1,5 +1,10 @@
 package com.fadynemer.cutime.screens
 
+import com.fadynemer.cutime.R
+
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -33,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,8 +47,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -73,124 +82,140 @@ fun AppointmentDetailScreen(
         detailViewModel.observe(appointmentId)
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
+    CompositionLocalProvider(
+        LocalLayoutDirection provides LayoutDirection.Ltr
+    ) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.background,
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = stringResource(
+                                R.string.appointment_details_title
+                            ),
+                            color = CutTimeNavy,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector =
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription =
+                                    stringResource(R.string.action_back),
+                                tint = CutTimeNavy
+                            )
+                        }
+                    }
+                )
+            }
+        ) { innerPadding ->
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = CutTimeNavy)
+                    }
+                }
+
+                uiState.appointment == null -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                            .padding(24.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text =
+                                uiState.errorMessage
+                                    ?: "Appointment unavailable.",
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                else -> {
+                    AppointmentDetailContent(
+                        appointment = uiState.appointment,
+                        isBarberView = isBarberView,
+                        isUpdating = uiState.isUpdating,
+                        errorMessage = uiState.errorMessage,
+                        successMessage = uiState.successMessage,
+                        onCancel = {
+                            confirmCancel = true
+                        },
+                        onComplete = detailViewModel::complete,
+                        onReschedule = {
+                            onReschedule(uiState.appointment.id)
+                        },
+                        onRate = {
+                            onRate(uiState.appointment.id)
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    )
+                }
+            }
+        }
+
+        if (confirmCancel) {
+            AlertDialog(
+                onDismissRequest = {
+                    confirmCancel = false
+                },
                 title = {
                     Text(
-                        text = "Appointment Details",
-                        color = CutTimeNavy,
-                        fontWeight = FontWeight.SemiBold
+                        stringResource(R.string.appointments_cancel_title)
                     )
                 },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector =
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = CutTimeNavy
+                text = {
+                    Text(
+                        stringResource(
+                            R.string.appointment_cancel_release_message
                         )
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            confirmCancel = false
+                            detailViewModel.cancel()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = CutTimeRed
+                        )
+                    ) {
+                        Text(
+                            stringResource(
+                                R.string.appointments_cancel_action
+                            )
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            confirmCancel = false
+                        }
+                    ) {
+                        Text(stringResource(R.string.action_keep))
                     }
                 }
             )
         }
-    ) { innerPadding ->
-        when {
-            uiState.isLoading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = CutTimeNavy)
-                }
-            }
-
-            uiState.appointment == null -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text =
-                            uiState.errorMessage
-                                ?: "Appointment unavailable.",
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-
-            else -> {
-                AppointmentDetailContent(
-                    appointment = uiState.appointment,
-                    isBarberView = isBarberView,
-                    isUpdating = uiState.isUpdating,
-                    errorMessage = uiState.errorMessage,
-                    successMessage = uiState.successMessage,
-                    onCancel = {
-                        confirmCancel = true
-                    },
-                    onComplete = detailViewModel::complete,
-                    onReschedule = {
-                        onReschedule(uiState.appointment.id)
-                    },
-                    onRate = {
-                        onRate(uiState.appointment.id)
-                    },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                )
-            }
-        }
-    }
-
-    if (confirmCancel) {
-        AlertDialog(
-            onDismissRequest = {
-                confirmCancel = false
-            },
-            title = { Text("Cancel appointment?") },
-            text = {
-                Text(
-                    "The reserved time will be released for another customer."
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        confirmCancel = false
-                        detailViewModel.cancel()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = CutTimeRed
-                    )
-                ) {
-                    Text("Cancel Appointment")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        confirmCancel = false
-                    }
-                ) {
-                    Text("Keep")
-                }
-            }
-        )
     }
 }
-
 @Composable
 private fun AppointmentDetailContent(
     appointment: Appointment,
@@ -207,12 +232,7 @@ private fun AppointmentDetailContent(
     val isUpcoming =
         appointment.status == AppointmentStatus.UPCOMING
     val isCompleted =
-        appointment.status == AppointmentStatus.COMPLETED ||
-            (
-                appointment.status == AppointmentStatus.UPCOMING &&
-                    appointment.endAtMillis <=
-                    System.currentTimeMillis()
-                )
+        appointment.status == AppointmentStatus.COMPLETED
 
     Column(
         modifier = modifier.padding(20.dp),
@@ -240,7 +260,7 @@ private fun AppointmentDetailContent(
                 Spacer(modifier = Modifier.height(18.dp))
                 DetailRow(
                     icon = Icons.Default.CalendarMonth,
-                    label = "Date",
+                    label = stringResource(R.string.booking_summary_date),
                     value =
                         AppointmentDateTime.formatDateForDisplay(
                             appointment.appointmentDate
@@ -248,28 +268,37 @@ private fun AppointmentDetailContent(
                 )
                 DetailRow(
                     icon = Icons.Default.Schedule,
-                    label = "Time",
-                    value =
-                        "${appointment.appointmentTime} • " +
-                            "${appointment.durationMinutes} minutes"
+                    label = stringResource(R.string.booking_summary_time),
+                    value = pluralStringResource(
+                        R.plurals.appointments_time_duration,
+                        appointment.durationMinutes,
+                        appointment.appointmentTime,
+                        appointment.durationMinutes
+                    )
                 )
                 DetailRow(
                     icon = Icons.Default.Person,
-                    label = "Status",
+                    label = stringResource(R.string.appointment_detail_status),
                     value =
                         when {
                             appointment.status ==
                                 AppointmentStatus.CANCELLED ->
-                                "Cancelled"
+                                stringResource(R.string.appointments_cancelled)
 
-                            isCompleted -> "Completed"
-                            else -> "Upcoming"
+                            isCompleted ->
+                                stringResource(R.string.appointments_completed)
+
+                            else ->
+                                stringResource(R.string.appointments_upcoming)
                         }
                 )
                 DetailRow(
                     icon = Icons.Default.ContentCut,
-                    label = "Price",
-                    value = "₪${appointment.price}"
+                    label = stringResource(R.string.appointment_detail_price),
+                    value = stringResource(
+                        R.string.appointments_price,
+                        appointment.price
+                    )
                 )
             }
         }
@@ -299,12 +328,9 @@ private fun AppointmentDetailContent(
                         containerColor = CutTimeNavy
                     )
                 ) {
-                    Text("Reschedule")
+                    Text(stringResource(R.string.action_reschedule))
                 }
-            } else if (
-                appointment.endAtMillis <=
-                System.currentTimeMillis()
-            ) {
+            } else {
                 Button(
                     onClick = onComplete,
                     enabled = !isUpdating,
@@ -315,7 +341,7 @@ private fun AppointmentDetailContent(
                         containerColor = CutTimeNavy
                     )
                 ) {
-                    Text("Mark Completed")
+                    Text(stringResource(R.string.action_mark_completed))
                 }
             }
 
@@ -326,7 +352,7 @@ private fun AppointmentDetailContent(
                     .fillMaxWidth()
                     .height(50.dp)
             ) {
-                Text("Cancel Appointment")
+                Text(stringResource(R.string.appointments_cancel_action))
             }
         } else if (
             !isBarberView &&
@@ -342,7 +368,7 @@ private fun AppointmentDetailContent(
                     containerColor = CutTimeNavy
                 )
             ) {
-                Text("Rate This Barber")
+                Text(stringResource(R.string.appointment_rate_barber))
             }
         } else if (
             !isBarberView &&
@@ -350,7 +376,7 @@ private fun AppointmentDetailContent(
             appointment.ratingId != null
         ) {
             Text(
-                text = "Review submitted",
+                text = stringResource(R.string.appointment_review_submitted),
                 color = CutTimeSuccess,
                 fontWeight = FontWeight.Medium
             )
@@ -409,12 +435,16 @@ private fun DetailRow(
         Text(
             text = label,
             color = CutTimeTextSecondary,
-            modifier = Modifier.weight(1f)
+            maxLines = 1,
+            modifier = Modifier.width(66.dp)
         )
         Text(
             text = value,
             color = CutTimeNavy,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.End,
+            lineHeight = 21.sp,
+            modifier = Modifier.weight(1f)
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.fadynemer.cutime.data
 
+import com.fadynemer.cutime.BuildConfig
 import com.fadynemer.cutime.model.BarberShop
 
 object BarberCatalogCache {
@@ -15,9 +16,15 @@ object BarberCatalogCache {
     }
 
     @Synchronized
-    fun find(barberId: String): BarberShop? {
+    fun find(
+        barberId: String,
+        includeDevelopmentFallback: Boolean =
+            BuildConfig.ENABLE_DEVELOPMENT_CATALOG
+    ): BarberShop? {
         return cachedBarbers[barberId]
-            ?: SampleBarberData.findById(barberId)
+            ?: SampleBarberData
+                .takeIf { includeDevelopmentFallback }
+                ?.findById(barberId)
                 ?.copy(isDevelopmentFallback = true)
     }
 

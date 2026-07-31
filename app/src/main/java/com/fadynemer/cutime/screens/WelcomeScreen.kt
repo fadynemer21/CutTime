@@ -1,5 +1,7 @@
 package com.fadynemer.cutime.screens
 
+import androidx.compose.ui.res.stringResource
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,14 +42,14 @@ fun WelcomeScreen(navController: NavController) {
 
         Image(
             painter = painterResource(id = R.drawable.cutime_logo),
-            contentDescription = "CutTime Logo",
+            contentDescription = stringResource(R.string.content_description_cutime_logo),
             modifier = Modifier.size(400.dp)
         )
 
         Spacer(modifier = Modifier.height(0.dp))
 
         Text(
-            text = "Your Time.\nYour Style.",
+            text = stringResource(R.string.welcome_title),
             style = TextStyle(
                 fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -59,7 +61,7 @@ fun WelcomeScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(15.dp))
 
         Text(
-            text = "Book appointments with your favourite barber in seconds.",
+            text = stringResource(R.string.welcome_subtitle),
             style = TextStyle(
                 fontSize = 16.sp,
                 textAlign = TextAlign.Center,
@@ -76,7 +78,7 @@ fun WelcomeScreen(navController: NavController) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "Login",
+                text = stringResource(R.string.login_action),
                 style = TextStyle(textDirection = TextDirection.Ltr)
             )
         }
@@ -90,7 +92,7 @@ fun WelcomeScreen(navController: NavController) {
             modifier = Modifier.fillMaxWidth()
         ){
             Text(
-                text = "Create Account",
+                text = stringResource(R.string.register_action),
                 style = TextStyle(textDirection = TextDirection.Ltr)
             )
         }

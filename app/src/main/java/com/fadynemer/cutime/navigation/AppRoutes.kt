@@ -80,3 +80,56 @@ object RouteArguments {
     const val APPOINTMENT_ID = "appointmentId"
     const val MODE = "mode"
 }
+
+/**
+ * Restricts notification/deep-link input to authenticated in-app destinations.
+ * FCM payloads are remote input and must never be passed unchecked to NavHost.
+ */
+object AppRoutePolicy {
+    private val exactDestinations = setOf(
+        AppRoute.CustomerHome.pattern,
+        AppRoute.CustomerAppointments.pattern,
+        AppRoute.CustomerProfile.pattern,
+        AppRoute.BarberDashboard.pattern,
+        AppRoute.BarberServices.pattern,
+        AppRoute.BarberAvailability.pattern,
+        AppRoute.BarberManageProfile.pattern,
+        AppRoute.BarberGallery.pattern
+    )
+
+    private val argumentPrefixes = setOf(
+        "barber_profile/",
+        "booking/",
+        "appointment/",
+        "barber_appointment/",
+        "reschedule/",
+        "rating/",
+        "notifications/",
+        "notification_settings/"
+    )
+
+    fun isAllowed(destination: String?): Boolean {
+        val route = destination?.trim() ?: return false
+        if (
+            route.isEmpty() ||
+            route.length > MAX_ROUTE_LENGTH ||
+            route.startsWith("/") ||
+            route.contains('?') ||
+            route.contains('#') ||
+            route.contains('\\') ||
+            route.split('/').any { it == "." || it == ".." }
+        ) {
+            return false
+        }
+
+        if (route in exactDestinations) return true
+
+        return argumentPrefixes.any { prefix ->
+            route.startsWith(prefix) &&
+                route.length > prefix.length &&
+                !route.substring(prefix.length).contains('/')
+        }
+    }
+
+    private const val MAX_ROUTE_LENGTH = 512
+}
