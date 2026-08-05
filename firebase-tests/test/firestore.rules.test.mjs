@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import assert from "node:assert/strict";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import test, {after, before, beforeEach} from "node:test";
@@ -463,6 +464,190 @@ test("notification inbox cannot be read by another user", async () => {
         otherDatabase(),
         "users/customer/notifications/notice",
       ),
+    ),
+  );
+});
+
+test("customer can submit a rating using the saved username", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    const database = context.firestore();
+    await setDoc(doc(database, "appointments/completed-rating"), {
+      appointmentId: "completed-rating",
+      customerId: "customer",
+      customerName: "Customer One",
+      customerEmail: "customer@example.com",
+      barberId: "barber",
+      barberName: "Test Studio",
+      serviceId: "service",
+      serviceName: "Haircut",
+      price: 50,
+      durationMinutes: 30,
+      appointmentDate: "2026-08-01",
+      appointmentTime: "10:00",
+      startAt: new Date("2026-08-01T07:00:00Z"),
+      endAt: new Date("2026-08-01T07:30:00Z"),
+      slotIds: [],
+      status: "COMPLETED",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  });
+
+  const database = customerDatabase();
+  const rating = writeBatch(database);
+  rating.set(doc(database, "ratings/completed-rating"), {
+    ratingId: "completed-rating",
+    appointmentId: "completed-rating",
+    customerId: "customer",
+    barberId: "barber",
+    customerName: "Customer One",
+    stars: 5,
+    review: "Great cut",
+    createdAt: serverTimestamp(),
+  });
+  rating.update(doc(database, "barberProfiles/barber"), {
+    ratingCount: 1,
+    ratingSum: 5,
+    ratingAverage: 5,
+    lastRatingId: "completed-rating",
+    updatedAt: serverTimestamp(),
+  });
+  rating.update(doc(database, "appointments/completed-rating"), {
+    ratingId: "completed-rating",
+    updatedAt: serverTimestamp(),
+  });
+  await assertSucceeds(rating.commit());
+
+  await assertSucceeds(
+    updateDoc(doc(database, "appointments/completed-rating"), {
+      hiddenFromCustomer: true,
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(barberDatabase(), "appointments/completed-rating"), {
+      hiddenFromBarber: true,
+      updatedAt: serverTimestamp(),
+    }),
+  );
+
+  const savedRating = await getDoc(
+    doc(database, "ratings/completed-rating"),
+  );
+  const savedBarber = await getDoc(
+    doc(database, "barberProfiles/barber"),
+  );
+  assert.equal(savedRating.exists(), true);
+  assert.equal(savedRating.data().review, "Great cut");
+  assert.equal(savedBarber.data().ratingCount, 1);
+  assert.equal(savedBarber.data().ratingSum, 5);
+  assert.equal(savedBarber.data().ratingAverage, 5);
+});
+
+test("barber accounts cannot rate even while using customer features", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    const database = context.firestore();
+    await setDoc(doc(database, "appointments/barber-completed"), {
+      appointmentId: "barber-completed",
+      customerId: "barber",
+      customerName: "Barber Owner",
+      customerEmail: "barber@example.com",
+      barberId: "barber",
+      barberName: "Test Studio",
+      serviceId: "service",
+      serviceName: "Haircut",
+      price: 50,
+      durationMinutes: 30,
+      appointmentDate: "2026-08-01",
+      appointmentTime: "10:00",
+      startAt: new Date("2026-08-01T07:00:00Z"),
+      endAt: new Date("2026-08-01T07:30:00Z"),
+      slotIds: [],
+      status: "COMPLETED",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  });
+
+  const database = barberDatabase();
+  const rating = writeBatch(database);
+  rating.set(doc(database, "ratings/barber-completed"), {
+    ratingId: "barber-completed",
+    appointmentId: "barber-completed",
+    customerId: "barber",
+    barberId: "barber",
+    customerName: "Barber Owner",
+    stars: 5,
+    review: "Self review",
+    createdAt: serverTimestamp(),
+  });
+  rating.update(doc(database, "barberProfiles/barber"), {
+    ratingCount: 1,
+    ratingSum: 5,
+    ratingAverage: 5,
+    lastRatingId: "barber-completed",
+    updatedAt: serverTimestamp(),
+  });
+  rating.update(doc(database, "appointments/barber-completed"), {
+    ratingId: "barber-completed",
+    updatedAt: serverTimestamp(),
+  });
+  await assertFails(rating.commit());
+});
+
+test("customer and barber can hide completed history independently", async () => {
+  await assertSucceeds(
+    updateDoc(
+      doc(customerDatabase(), "appointments/cancelled"),
+      {
+        hiddenFromCustomer: true,
+        updatedAt: serverTimestamp(),
+      },
+    ),
+  );
+  await assertSucceeds(
+    updateDoc(
+      doc(barberDatabase(), "appointments/cancelled"),
+      {
+        hiddenFromBarber: true,
+        updatedAt: serverTimestamp(),
+      },
+    ),
+  );
+});
+
+test("customer can hide an expired upcoming appointment shown in completed history", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    const database = context.firestore();
+    await setDoc(doc(database, "appointments/expired-upcoming"), {
+      appointmentId: "expired-upcoming",
+      customerId: "customer",
+      customerName: "Customer One",
+      customerEmail: "customer@example.com",
+      barberId: "barber",
+      barberName: "Test Studio",
+      serviceId: "service",
+      serviceName: "Haircut",
+      price: 50,
+      durationMinutes: 30,
+      appointmentDate: "2026-08-01",
+      appointmentTime: "10:00",
+      startAt: new Date("2026-08-01T07:00:00Z"),
+      endAt: new Date("2026-08-01T07:30:00Z"),
+      slotIds: [],
+      status: "UPCOMING",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  });
+
+  await assertSucceeds(
+    updateDoc(
+      doc(customerDatabase(), "appointments/expired-upcoming"),
+      {
+        hiddenFromCustomer: true,
+        updatedAt: serverTimestamp(),
+      },
     ),
   );
 });

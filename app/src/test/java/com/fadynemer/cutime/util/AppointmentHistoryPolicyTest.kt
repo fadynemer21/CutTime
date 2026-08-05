@@ -21,17 +21,30 @@ class AppointmentHistoryPolicyTest {
     }
 
     @Test
-    fun upcomingOrCompletedAppointmentCannotBeHidden() {
+    fun activeUpcomingCannotBeHiddenButExpiredUpcomingAndCompletedCan() {
         assertFalse(
             AppointmentHistoryPolicy.canCustomerHide(
                 authenticatedUserId = "customer_1",
                 appointmentCustomerId = "customer_1",
                 appointmentStatus =
                     AppointmentStatus.UPCOMING.name,
-                alreadyHidden = false
+                alreadyHidden = false,
+                appointmentEndAtMillis = 2_000L,
+                nowMillis = 1_000L
             )
         )
-        assertFalse(
+        assertTrue(
+            AppointmentHistoryPolicy.canCustomerHide(
+                authenticatedUserId = "customer_1",
+                appointmentCustomerId = "customer_1",
+                appointmentStatus =
+                    AppointmentStatus.UPCOMING.name,
+                alreadyHidden = false,
+                appointmentEndAtMillis = 1_000L,
+                nowMillis = 2_000L
+            )
+        )
+        assertTrue(
             AppointmentHistoryPolicy.canCustomerHide(
                 authenticatedUserId = "customer_1",
                 appointmentCustomerId = "customer_1",
@@ -41,6 +54,34 @@ class AppointmentHistoryPolicyTest {
             )
         )
     }
+    @Test
+    fun barberCanHideOwnCompletedOrCancelledHistory() {
+        assertTrue(
+            AppointmentHistoryPolicy.canBarberHide(
+                authenticatedUserId = "barber_1",
+                appointmentBarberId = "barber_1",
+                appointmentStatus = AppointmentStatus.COMPLETED.name,
+                alreadyHidden = false
+            )
+        )
+        assertTrue(
+            AppointmentHistoryPolicy.canBarberHide(
+                authenticatedUserId = "barber_1",
+                appointmentBarberId = "barber_1",
+                appointmentStatus = AppointmentStatus.CANCELLED.name,
+                alreadyHidden = false
+            )
+        )
+        assertFalse(
+            AppointmentHistoryPolicy.canBarberHide(
+                authenticatedUserId = "barber_2",
+                appointmentBarberId = "barber_1",
+                appointmentStatus = AppointmentStatus.COMPLETED.name,
+                alreadyHidden = false
+            )
+        )
+    }
+
 
     @Test
     fun anotherCustomerOrAlreadyHiddenRecordCannotBeHidden() {

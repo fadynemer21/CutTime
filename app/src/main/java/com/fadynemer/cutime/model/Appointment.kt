@@ -17,6 +17,7 @@ data class Appointment(
     val endAtMillis: Long,
     val status: AppointmentStatus,
     val hiddenFromCustomer: Boolean = false,
+    val hiddenFromBarber: Boolean = false,
     val ratingId: String? = null,
     val createdAtMillis: Long = 0L,
     val updatedAtMillis: Long = 0L,

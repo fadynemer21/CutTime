@@ -275,11 +275,23 @@ service cloud.firestore {
 
       allow update: if canUseCustomerFeatures() &&
         resource.data.customerId == request.auth.uid &&
-        resource.data.status == 'CANCELLED' &&
+        (
+          resource.data.status in ['COMPLETED', 'CANCELLED'] ||
+          (resource.data.status == 'UPCOMING' && resource.data.endAt <= request.time)
+        ) &&
         resource.data.get('hiddenFromCustomer', false) == false &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['hiddenFromCustomer', 'updatedAt']) &&
         request.resource.data.hiddenFromCustomer == true &&
+        request.resource.data.updatedAt == request.time;
+
+      allow update: if hasRole('BARBER') &&
+        resource.data.barberId == request.auth.uid &&
+        resource.data.status in ['COMPLETED', 'CANCELLED'] &&
+        resource.data.get('hiddenFromBarber', false) == false &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['hiddenFromBarber', 'updatedAt']) &&
+        request.resource.data.hiddenFromBarber == true &&
         request.resource.data.updatedAt == request.time;
 
       allow update: if canUseCustomerFeatures() &&
@@ -316,20 +328,14 @@ service cloud.firestore {
         request.resource.data.rescheduledAt == request.time &&
         request.resource.data.updatedAt == request.time;
 
-      allow update: if canUseCustomerFeatures() &&
+      allow update: if hasRole('CUSTOMER') &&
         resource.data.customerId == request.auth.uid &&
         resource.data.status == 'COMPLETED' &&
         request.resource.data.status == resource.data.status &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['ratingId', 'updatedAt']) &&
         request.resource.data.ratingId == appointmentId &&
-        request.resource.data.updatedAt == request.time &&
-        ratingAfter(appointmentId).data.appointmentId ==
-          appointmentId &&
-        ratingAfter(appointmentId).data.customerId ==
-          request.auth.uid &&
-        ratingAfter(appointmentId).data.barberId ==
-          resource.data.barberId;
+        request.resource.data.updatedAt == request.time;
 
       allow delete: if false;
     }
@@ -366,7 +372,7 @@ service cloud.firestore {
           request.resource.data.description.size() <= 500 &&
           request.resource.data.updatedAt == request.time;
 
-      allow update: if canUseCustomerFeatures() &&
+      allow update: if hasRole('CUSTOMER') &&
         request.auth.uid != barberId &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly([
@@ -386,10 +392,6 @@ service cloud.firestore {
         ratingAfter(
           request.resource.data.lastRatingId
         ).data.createdAt == request.time &&
-        appointmentAfter(
-          request.resource.data.lastRatingId
-        ).data.ratingId ==
-          request.resource.data.lastRatingId &&
         request.resource.data.ratingCount ==
           resource.data.get('ratingCount', 0) + 1 &&
         request.resource.data.ratingSum ==
@@ -563,7 +565,7 @@ service cloud.firestore {
     match /ratings/{ratingId} {
       allow read: if signedIn();
 
-      allow create: if canUseCustomerFeatures() &&
+      allow create: if hasRole('CUSTOMER') &&
         request.resource.data.ratingId == ratingId &&
         request.resource.data.appointmentId == ratingId &&
         request.resource.data.customerId == request.auth.uid &&
@@ -571,6 +573,9 @@ service cloud.firestore {
         request.resource.data.stars >= 1 &&
         request.resource.data.stars <= 5 &&
         request.resource.data.review is string &&
+        request.resource.data.customerName is string &&
+        request.resource.data.customerName ==
+          currentUser().data.fullName &&
         request.resource.data.review.size() <= 500 &&
         request.resource.data.createdAt == request.time &&
         get(

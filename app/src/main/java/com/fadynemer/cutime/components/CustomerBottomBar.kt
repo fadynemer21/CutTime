@@ -10,8 +10,11 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import com.fadynemer.cutime.R
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeRed
@@ -33,7 +36,10 @@ fun CustomerBottomBar(
     val appointmentsLabel =
         stringResource(R.string.nav_appointments)
     val profileLabel = stringResource(R.string.nav_profile)
-    NavigationBar {
+    CompositionLocalProvider(
+        LocalLayoutDirection provides LayoutDirection.Ltr
+    ) {
+        NavigationBar {
         NavigationBarItem(
             selected =
                 selectedDestination == CustomerDestination.HOME,
@@ -87,6 +93,7 @@ fun CustomerBottomBar(
             colors = customerNavigationColors()
         )
     }
+        }
 }
 
 @Composable

@@ -25,6 +25,8 @@ sealed class AppRoute(
     data object BarberAvailability : AppRoute("barber_availability")
     data object BarberManageProfile :
         AppRoute("barber_manage_profile")
+    data object BarberAppointmentHistory :
+        AppRoute("barber_appointment_history")
     data object BarberGallery : AppRoute("barber_gallery")
     data object Notifications :
         AppRoute("notifications/{mode}") {
@@ -94,6 +96,7 @@ object AppRoutePolicy {
         AppRoute.BarberServices.pattern,
         AppRoute.BarberAvailability.pattern,
         AppRoute.BarberManageProfile.pattern,
+        AppRoute.BarberAppointmentHistory.pattern,
         AppRoute.BarberGallery.pattern
     )
 

@@ -377,6 +377,96 @@ class AvailabilitySlotGeneratorTest {
         assertTrue("18:30" in slots)
     }
 
+    @Test
+    fun nextAvailabilityUsesOnlyFutureSlotsToday() {
+        val eveningClock = Clock.fixed(
+            Instant.parse("2030-01-07T17:00:00Z"),
+            zone
+        )
+        val result = NextAvailabilityFormatter.format(
+            availability = BarberAvailability(
+                days = listOf(
+                    DayAvailability(
+                        day = "Monday",
+                        isOpen = true,
+                        startTime = "09:00",
+                        endTime = "20:00"
+                    )
+                )
+            ),
+            durationMinutes = 30,
+            occupiedTimesByDate = emptyMap(),
+            clock = eveningClock
+        )
+
+        assertEquals("Available today", result)
+    }
+
+    @Test
+    fun nextAvailabilityMovesToNearestOpenWeekdayAfterClosing() {
+        val afterClosingClock = Clock.fixed(
+            Instant.parse("2030-01-07T17:00:00Z"),
+            zone
+        )
+        val result = NextAvailabilityFormatter.format(
+            availability = BarberAvailability(
+                days = listOf(
+                    DayAvailability(
+                        day = "Monday",
+                        isOpen = true,
+                        startTime = "09:00",
+                        endTime = "19:00"
+                    ),
+                    DayAvailability(
+                        day = "Wednesday",
+                        isOpen = true,
+                        startTime = "09:00",
+                        endTime = "10:00"
+                    )
+                )
+            ),
+            durationMinutes = 30,
+            occupiedTimesByDate = emptyMap(),
+            clock = afterClosingClock
+        )
+
+        assertEquals("Available Wednesday", result)
+    }
+
+    @Test
+    fun nextAvailabilitySkipsFullyBookedDay() {
+        val mondayMorningClock = Clock.fixed(
+            Instant.parse("2030-01-07T06:00:00Z"),
+            zone
+        )
+        val result = NextAvailabilityFormatter.format(
+            availability = BarberAvailability(
+                days = listOf(
+                    DayAvailability(
+                        day = "Monday",
+                        isOpen = true,
+                        startTime = "09:00",
+                        endTime = "10:00"
+                    ),
+                    DayAvailability(
+                        day = "Tuesday",
+                        isOpen = true,
+                        startTime = "09:00",
+                        endTime = "10:00"
+                    )
+                )
+            ),
+            durationMinutes = 30,
+            occupiedTimesByDate = mapOf(
+                "2030-01-07" to
+                    setOf("09:00", "09:15", "09:30", "09:45")
+            ),
+            clock = mondayMorningClock
+        )
+
+        assertEquals("Available tomorrow", result)
+    }
+
     private fun availability(
         start: String,
         end: String,

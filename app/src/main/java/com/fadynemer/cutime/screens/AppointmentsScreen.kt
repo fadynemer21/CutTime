@@ -36,7 +36,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,7 +43,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -70,8 +68,6 @@ import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
 import com.fadynemer.cutime.util.AppointmentDateTime
 import com.fadynemer.cutime.viewmodel.AppointmentsUiState
 import com.fadynemer.cutime.viewmodel.AppointmentsViewModel
-import com.fadynemer.cutime.viewmodel.NotificationPreferencesViewModel
-import com.fadynemer.cutime.notifications.AppointmentReminderScheduler
 import com.fadynemer.cutime.util.UiTestTags
 
 private enum class AppointmentSection(
@@ -89,32 +85,16 @@ fun AppointmentsScreen(
     onBrowseBarbers: () -> Unit,
     onProfileSelected: () -> Unit,
     onAppointmentSelected: (String) -> Unit,
-    appointmentsViewModel: AppointmentsViewModel = viewModel(),
-    preferencesViewModel:
-        NotificationPreferencesViewModel = viewModel()
+    onRate: (String) -> Unit,
+    canRate: Boolean = true,
+    appointmentsViewModel: AppointmentsViewModel = viewModel()
 ) {
     val uiState = appointmentsViewModel.uiState
-    val preferencesState = preferencesViewModel.uiState
-    val context = LocalContext.current
-    var appointmentToCancel by remember {
-        mutableStateOf<Appointment?>(null)
-    }
     var appointmentToDelete by remember {
         mutableStateOf<Appointment?>(null)
     }
-
-    LaunchedEffect(
-        uiState.groups.upcoming,
-        preferencesState.saved,
-        preferencesState.isLoading
-    ) {
-        if (!preferencesState.isLoading) {
-            AppointmentReminderScheduler.sync(
-                context = context,
-                appointments = uiState.groups.upcoming,
-                preferences = preferencesState.saved
-            )
-        }
+    var clearAllRequested by remember {
+        mutableStateOf(false)
     }
 
     CompositionLocalProvider(
@@ -133,6 +113,18 @@ fun AppointmentsScreen(
                             color = CutTimeNavy,
                             fontWeight = FontWeight.SemiBold
                         )
+                    },
+                    actions = {
+                        if (
+                            uiState.groups.completed.isNotEmpty() ||
+                            uiState.groups.cancelled.isNotEmpty()
+                        ) {
+                            androidx.compose.material3.TextButton(
+                                onClick = { clearAllRequested = true }
+                            ) {
+                                Text(stringResource(R.string.appointments_clear_history))
+                            }
+                        }
                     }
                 )
             },
@@ -150,9 +142,6 @@ fun AppointmentsScreen(
                 uiState = uiState,
                 onRetry = appointmentsViewModel::retry,
                 onBrowseBarbers = onBrowseBarbers,
-                onCancel = { appointment ->
-                    appointmentToCancel = appointment
-                },
                 onDeleteFromHistory = { appointment ->
                     appointmentToDelete = appointment
                 },
@@ -164,59 +153,11 @@ fun AppointmentsScreen(
         }
     }
 
-    appointmentToCancel?.let { appointment ->
-        AlertDialog(
-            modifier = Modifier.testTag(UiTestTags.CANCEL_DIALOG),
-            onDismissRequest = {
-                appointmentToCancel = null
-            },
-            title = {
-                Text(
-                    stringResource(
-                        R.string.appointments_cancel_title
-                    )
-                )
-            },
-            text = {
-                Text(
-                    stringResource(
-                        R.string.appointments_cancel_message,
-                        appointment.barberName
-                    )
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        appointmentsViewModel.cancelAppointment(
-                            appointment.id
-                        )
-                        appointmentToCancel = null
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = CutTimeRed
-                    )
-                ) {
-                    Text(
-                        stringResource(
-                            R.string.appointments_cancel_action
-                        )
-                    )
-                }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        appointmentToCancel = null
-                    }
-                ) {
-                    Text(stringResource(R.string.action_keep))
-                }
-            }
-        )
-    }
-
     appointmentToDelete?.let { appointment ->
+        val shouldOfferRating =
+            canRate &&
+                appointment.status == AppointmentStatus.COMPLETED &&
+                appointment.ratingId == null
         AlertDialog(
             modifier = Modifier.testTag(
                 UiTestTags.DELETE_HISTORY_DIALOG
@@ -227,14 +168,22 @@ fun AppointmentsScreen(
             title = {
                 Text(
                     stringResource(
-                        R.string.appointments_delete_title
+                        if (shouldOfferRating) {
+                            R.string.appointments_rate_before_clear_title
+                        } else {
+                            R.string.appointments_delete_title
+                        }
                     )
                 )
             },
             text = {
                 Text(
                     stringResource(
-                        R.string.appointments_delete_message,
+                        if (shouldOfferRating) {
+                            R.string.appointments_rate_before_clear_message
+                        } else {
+                            R.string.appointments_delete_message
+                        },
                         appointment.barberName
                     )
                 )
@@ -242,19 +191,26 @@ fun AppointmentsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        appointmentsViewModel
-                            .deleteCancelledFromHistory(
-                                appointment.id
-                            )
+                        if (shouldOfferRating) {
+                            onRate(appointment.id)
+                        } else {
+                            appointmentsViewModel
+                                .deleteFromHistory(appointment.id)
+                        }
                         appointmentToDelete = null
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = CutTimeRed
+                        containerColor =
+                            if (shouldOfferRating) CutTimeNavy else CutTimeRed
                     )
                 ) {
                     Text(
                         stringResource(
-                            R.string.appointments_delete_action
+                            if (shouldOfferRating) {
+                                R.string.appointment_rate_barber
+                            } else {
+                                R.string.appointments_delete_action
+                            }
                         )
                     )
                 }
@@ -262,8 +218,61 @@ fun AppointmentsScreen(
             dismissButton = {
                 androidx.compose.material3.TextButton(
                     onClick = {
+                        if (shouldOfferRating) {
+                            appointmentsViewModel
+                                .deleteFromHistory(appointment.id)
+                        }
                         appointmentToDelete = null
                     }
+                ) {
+                    Text(
+                        stringResource(
+                            if (shouldOfferRating) {
+                                R.string.appointments_clear_without_rating
+                            } else {
+                                R.string.action_keep
+                            }
+                        )
+                    )
+                }
+            }
+        )
+    }
+
+    if (clearAllRequested) {
+        AlertDialog(
+            onDismissRequest = { clearAllRequested = false },
+            title = {
+                Text(
+                    stringResource(
+                        R.string.appointments_clear_history_title
+                    )
+                )
+            },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.appointments_clear_history_message
+                    )
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        appointmentsViewModel.clearHistory()
+                        clearAllRequested = false
+                    }
+                ) {
+                    Text(
+                        stringResource(
+                            R.string.appointments_clear_history
+                        )
+                    )
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { clearAllRequested = false }
                 ) {
                     Text(stringResource(R.string.action_keep))
                 }
@@ -277,7 +286,6 @@ private fun AppointmentsContent(
     uiState: AppointmentsUiState,
     onRetry: () -> Unit,
     onBrowseBarbers: () -> Unit,
-    onCancel: (Appointment) -> Unit,
     onDeleteFromHistory: (Appointment) -> Unit,
     onAppointmentSelected: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -347,7 +355,7 @@ private fun AppointmentsContent(
                         AppointmentCard(
                             appointment =
                                 uiState.groups.upcoming[index],
-                            onCancel = onCancel,
+                            onCancel = null,
                             onDeleteFromHistory = null,
                             onSelected = onAppointmentSelected
                         )
@@ -371,7 +379,7 @@ private fun AppointmentsContent(
                             appointment =
                                 uiState.groups.completed[index],
                             onCancel = null,
-                            onDeleteFromHistory = null,
+                            onDeleteFromHistory = onDeleteFromHistory,
                             onSelected = onAppointmentSelected
                         )
                     }

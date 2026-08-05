@@ -150,3 +150,47 @@ object AvailabilitySlotGenerator {
         }
     }
 }
+
+object NextAvailabilityFormatter {
+    fun format(
+        availability: BarberAvailability,
+        durationMinutes: Int,
+        occupiedTimesByDate: Map<String, Set<String>>,
+        clock: Clock = Clock.systemDefaultZone(),
+        daysToCheck: Int = 14
+    ): String {
+        if (durationMinutes <= 0 || daysToCheck <= 0) {
+            return "No upcoming availability"
+        }
+
+        val today = LocalDate.now(clock)
+        repeat(daysToCheck) { offset ->
+            val date = today.plusDays(offset.toLong())
+            val availableTimes =
+                AvailabilitySlotGenerator.availableTimes(
+                    availability = availability,
+                    date = date,
+                    durationMinutes = durationMinutes,
+                    occupiedTimes =
+                        occupiedTimesByDate[date.toString()].orEmpty(),
+                    clock = clock
+                )
+            if (availableTimes.isNotEmpty()) {
+                return when (offset) {
+                    0 -> "Available today"
+                    1 -> "Available tomorrow"
+                    else -> {
+                        val dayName =
+                            date.dayOfWeek.getDisplayName(
+                                TextStyle.FULL,
+                                Locale.ENGLISH
+                            )
+                        "Available $dayName"
+                    }
+                }
+            }
+        }
+
+        return "No upcoming availability"
+    }
+}

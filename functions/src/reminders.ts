@@ -34,20 +34,14 @@ export async function sendDueReminders(
   });
 
   const recipientResults = await Promise.all(
-    appointments.flatMap((appointment) => [
-      sendRecipientReminders(
-        appointment,
-        appointment.customerId,
-        false,
-        nowMillis,
-      ),
+    appointments.map((appointment) =>
       sendRecipientReminders(
         appointment,
         appointment.barberId,
         true,
         nowMillis,
       ),
-    ]),
+    ),
   );
   const results = recipientResults.flat();
 

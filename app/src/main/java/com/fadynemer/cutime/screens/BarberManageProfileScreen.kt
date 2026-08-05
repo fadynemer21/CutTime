@@ -166,6 +166,20 @@ fun BarberManageProfileScreen(
                 Spacer(modifier = Modifier.height(14.dp))
                 OutlinedButton(
                     onClick = {
+                        navController.navigate(
+                            AppRoute.BarberAppointmentHistory.pattern
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    Text(stringResource(R.string.barber_history_action))
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                OutlinedButton(
+                    onClick = {
                         val uid =
                             FirebaseAuth.getInstance()
                                 .currentUser?.uid

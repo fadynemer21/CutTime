@@ -3,6 +3,7 @@ package com.fadynemer.cutime.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import androidx.navigation.compose.NavHost
@@ -15,6 +16,7 @@ import com.fadynemer.cutime.screens.AppointmentDetailScreen
 import com.fadynemer.cutime.screens.BarberAvailabilityScreen
 import com.fadynemer.cutime.screens.BarberGalleryManagementScreen
 import com.fadynemer.cutime.screens.BarberManageProfileScreen
+import com.fadynemer.cutime.screens.BarberAppointmentHistoryScreen
 import com.fadynemer.cutime.screens.BarberServicesScreen
 import com.fadynemer.cutime.screens.BookingScreen
 import com.fadynemer.cutime.screens.DashboardScreen
@@ -29,7 +31,9 @@ import com.fadynemer.cutime.screens.RescheduleScreen
 import com.fadynemer.cutime.screens.RatingScreen
 import com.fadynemer.cutime.screens.SplashScreen
 import com.fadynemer.cutime.screens.WelcomeScreen
+import com.fadynemer.cutime.util.AccountModePreferences
 import com.fadynemer.cutime.util.NotificationRouter
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun AppNavigation(
@@ -41,6 +45,15 @@ fun AppNavigation(
     val currentEntry by
         navController.currentBackStackEntryAsState()
     val currentRoute = currentEntry?.destination?.route
+    val context = LocalContext.current
+    val currentUserId =
+        FirebaseAuth.getInstance().currentUser?.uid
+    val canCurrentAccountRate =
+        currentUserId != null &&
+            !AccountModePreferences.isCustomerMode(
+                context,
+                currentUserId
+            )
 
     LaunchedEffect(externalRoute, currentRoute) {
         val route = externalRoute ?: return@LaunchedEffect
@@ -119,7 +132,13 @@ fun AppNavigation(
                             appointmentId
                         )
                     )
-                }
+                },
+                onRate = { appointmentId ->
+                    navController.navigate(
+                        AppRoute.Rating.create(appointmentId)
+                    )
+                },
+                canRate = canCurrentAccountRate
             )
         }
 
@@ -148,14 +167,6 @@ fun AppNavigation(
                         launchSingleTop = true
                     }
                 },
-                onLoggedOut = {
-                    navController.navigate(AppRoute.Welcome.pattern) {
-                        popUpTo(0) {
-                            inclusive = true
-                        }
-                        launchSingleTop = true
-                    }
-                }
             )
         }
 
@@ -222,6 +233,7 @@ fun AppNavigation(
             AppointmentDetailScreen(
                 appointmentId = appointmentId,
                 isBarberView = false,
+                canRate = canCurrentAccountRate,
                 onBack = navController::navigateUp,
                 onReschedule = {
                     navController.navigate(
@@ -286,6 +298,7 @@ fun AppNavigation(
                 .orEmpty()
             RatingScreen(
                 appointmentId = appointmentId,
+                canRate = canCurrentAccountRate,
                 onBack = navController::navigateUp,
                 onFinished = navController::navigateUp
             )
@@ -308,6 +321,19 @@ fun AppNavigation(
         composable(AppRoute.BarberManageProfile.pattern) {
             BarberManageProfileScreen(
                 navController = navController
+            )
+        }
+
+        composable(AppRoute.BarberAppointmentHistory.pattern) {
+            BarberAppointmentHistoryScreen(
+                onBack = navController::navigateUp,
+                onAppointmentSelected = { appointmentId ->
+                    navController.navigate(
+                        AppRoute.BarberAppointmentDetail.create(
+                            appointmentId
+                        )
+                    )
+                }
             )
         }
 

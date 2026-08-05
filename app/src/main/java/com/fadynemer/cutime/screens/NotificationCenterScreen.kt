@@ -71,6 +71,17 @@ fun NotificationCenterScreen(
         NotificationCenterViewModel = viewModel()
 ) {
     val uiState = notificationViewModel.uiState
+    val visibleNotifications = uiState.notifications.filter { notification ->
+        if (isBarberMode) {
+            notification.barberId == notification.userId
+        } else {
+            notification.type == NotificationType.APPOINTMENT_CANCELLED &&
+                notification.barberId != notification.userId
+        }
+    }
+    val visibleUnreadCount = visibleNotifications.count { !it.isRead }
+    val visibleIsEmpty =
+        !uiState.isLoading && visibleNotifications.isEmpty()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -86,10 +97,10 @@ fun NotificationCenterScreen(
                             color = CutTimeNavy,
                             fontWeight = FontWeight.SemiBold
                         )
-                        if (uiState.unreadCount > 0) {
+                        if (visibleUnreadCount > 0) {
                             Spacer(modifier = Modifier.size(8.dp))
                             Badge {
-                                Text(uiState.unreadCount.toString())
+                                Text(visibleUnreadCount.toString())
                             }
                         }
                     }
@@ -104,7 +115,7 @@ fun NotificationCenterScreen(
                     }
                 },
                 actions = {
-                    if (uiState.unreadCount > 0) {
+                    if (visibleUnreadCount > 0) {
                         TextButton(
                             onClick =
                                 notificationViewModel::markAllRead,
@@ -142,7 +153,7 @@ fun NotificationCenterScreen(
             }
 
             uiState.errorMessage != null &&
-                uiState.notifications.isEmpty() -> {
+                visibleNotifications.isEmpty() -> {
                 NotificationErrorState(
                     message = uiState.errorMessage,
                     onRetry = notificationViewModel::retry,
@@ -152,7 +163,7 @@ fun NotificationCenterScreen(
                 )
             }
 
-            uiState.isEmpty -> {
+            visibleIsEmpty -> {
                 EmptyNotifications(
                     modifier = Modifier
                         .fillMaxSize()
@@ -162,7 +173,7 @@ fun NotificationCenterScreen(
 
             else -> {
                 NotificationList(
-                    notifications = uiState.notifications,
+                    notifications = visibleNotifications,
                     updatingNotificationId =
                         uiState.updatingNotificationId,
                     errorMessage = uiState.errorMessage,

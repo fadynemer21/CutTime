@@ -13,13 +13,11 @@ import com.fadynemer.cutime.model.CatalogSource
 import com.fadynemer.cutime.model.DayAvailability
 import com.fadynemer.cutime.model.OpeningHours
 import com.fadynemer.cutime.model.effectiveWorkingPeriods
+import com.fadynemer.cutime.util.NextAvailabilityFormatter
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
-import java.time.format.TextStyle
-import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 
 interface BarberCatalogDataSource {
@@ -211,8 +209,9 @@ class BarberCatalogRepository(
         val barberId = profile.id
         var services: List<BarberService>? = null
         var availability: BarberAvailability? = null
+        var occupiedTimesByDate: Map<String, Set<String>>? = null
         var firstError: Throwable? = null
-        val remaining = AtomicInteger(2)
+        val remaining = AtomicInteger(3)
 
         fun finish() {
             if (remaining.decrementAndGet() != 0) return
@@ -265,7 +264,13 @@ class BarberCatalogRepository(
                     )
                 }
             val nextAvailable =
-                calculateNextAvailable(days)
+                NextAvailabilityFormatter.format(
+                    availability = barberAvailability,
+                    durationMinutes =
+                        serviceList.minOf { it.durationMinutes },
+                    occupiedTimesByDate =
+                        occupiedTimesByDate.orEmpty()
+                )
 
             val barber = BarberShop(
                 id = barberId,
@@ -327,6 +332,40 @@ class BarberCatalogRepository(
                 firstError = firstError ?: error
                 finish()
             }
+
+        val today = LocalDate.now()
+        firestore
+            .collection(SLOTS_COLLECTION)
+            .whereEqualTo("barberId", barberId)
+            .whereGreaterThanOrEqualTo(
+                "appointmentDate",
+                today.toString()
+            )
+            .whereLessThanOrEqualTo(
+                "appointmentDate",
+                today.plusDays(13).toString()
+            )
+            .get()
+            .addOnSuccessListener { snapshot ->
+                occupiedTimesByDate =
+                    snapshot.documents
+                        .groupBy { document ->
+                            document.getString("appointmentDate").orEmpty()
+                        }
+                        .mapValues { (_, documents) ->
+                            documents.mapNotNull { document ->
+                                document.id
+                                    .substringAfterLast("_")
+                                    .replace("-", ":")
+                                    .takeIf { it.matches(Regex("\\d{2}:\\d{2}")) }
+                            }.toSet()
+                        }
+                finish()
+            }
+            .addOnFailureListener { error ->
+                firstError = firstError ?: error
+                finish()
+            }
     }
 
     private fun mapService(
@@ -377,41 +416,6 @@ class BarberCatalogRepository(
             rawDays = rawDays,
             rawBlockedDates = document.get("blockedDates")
         )
-    }
-
-    private fun calculateNextAvailable(
-        days: List<DayAvailability>
-    ): String {
-        if (days.isEmpty()) return "Schedule unavailable"
-
-        val today = LocalDate.now()
-
-        repeat(14) { offset ->
-            val date = today.plusDays(offset.toLong())
-            val dayName =
-                date.dayOfWeek.getDisplayName(
-                    TextStyle.FULL,
-                    Locale.ENGLISH
-                )
-            val day =
-                days.find { it.day == dayName }
-
-            if (day?.isOpen == true) {
-                val prefix =
-                    when (offset) {
-                        0 -> "Today"
-                        1 -> "Tomorrow"
-                        else -> dayName
-                    }
-                val firstStart =
-                    day.effectiveWorkingPeriods()
-                        .firstOrNull()?.startTime
-                        ?: day.startTime
-                return "$prefix at $firstStart"
-            }
-        }
-
-        return "No upcoming availability"
     }
 
     private fun generateRepresentativeTimes(

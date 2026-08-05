@@ -37,10 +37,19 @@
     <string name="appointments_cancel_message">This will release the reserved time with %1$s.</string>
     <string name="appointments_cancel_action">Cancel Appointment</string>
     <string name="appointments_delete_title">Delete from history?</string>
-    <string name="appointments_delete_message">This cancelled appointment with %1$s will disappear from your history. The barber&#8217;s record will not be deleted.</string>
+    <string name="appointments_delete_message">This appointment with %1$s will disappear from your history. The barber&#8217;s record will not be deleted.</string>
     <string name="appointments_delete_action">Delete from History</string>
     <string name="appointments_delete_long_press">Delete from history</string>
-    <string name="appointments_delete_hint">Long-press a cancelled appointment to delete it from your history.</string>
+    <string name="appointments_delete_hint">Long-press a completed or cancelled appointment to remove it from your history.</string>
+    <string name="appointments_clear_history">Clear History</string>
+    <string name="appointments_clear_history_title">Clear appointment history?</string>
+    <string name="appointments_clear_history_message">All completed and cancelled appointments will disappear from your history. This does not delete the other person&#8217;s record.</string>
+    <string name="appointments_rate_before_clear_title">Rate before clearing?</string>
+    <string name="appointments_rate_before_clear_message">Would you like to rate your completed appointment with %1$s before removing it from history?</string>
+    <string name="appointments_rate_before_clear_all_title">Rate completed appointments?</string>
+    <string name="appointments_rate_before_clear_all_message">You have a completed appointment that has not been rated. You can rate it first or clear history without rating.</string>
+    <string name="appointments_clear_without_rating">Clear Without Rating</string>
+    <string name="appointments_rate_first">Rate First</string>
     <plurals name="appointments_time_duration">
         <item quantity="one">%1$s &#8226; %2$d minute</item>
         <item quantity="other">%1$s &#8226; %2$d minutes</item>
@@ -49,6 +58,13 @@
     <string name="appointments_none">No appointments yet</string>
     <string name="appointments_none_hint">Book a barber and your appointments will appear here.</string>
     <string name="appointments_load_failed">Could not load appointments</string>
+    <string name="barber_history_title">Appointment History</string>
+    <string name="barber_history_action">View Appointment History</string>
+    <string name="barber_history_empty">No completed or cancelled appointments yet.</string>
+    <string name="barber_history_load_failed">Appointment history could not be loaded.</string>
+    <string name="barber_history_delete_title">Remove appointment from history?</string>
+    <string name="barber_history_delete_message">This appointment will disappear from your history only.</string>
+    <string name="barber_history_delete_hint">Long-press an appointment to remove it from history.</string>
     <string name="appointment_detail_status">Status</string>
     <string name="appointment_detail_price">Price</string>
 

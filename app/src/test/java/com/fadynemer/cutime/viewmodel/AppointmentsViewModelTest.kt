@@ -112,7 +112,7 @@ class AppointmentsViewModelTest {
         val repository = FakeAppointmentListDataSource()
         val viewModel = AppointmentsViewModel(repository)
 
-        viewModel.deleteCancelledFromHistory("cancelled_1")
+        viewModel.deleteFromHistory("cancelled_1")
 
         assertEquals(
             "cancelled_1",
@@ -175,11 +175,18 @@ class AppointmentsViewModelTest {
             onResult(Result.success(Unit))
         }
 
-        override fun hideCancelledAppointment(
-            appointmentId: String,
+        override fun hideCustomerAppointments(
+            appointmentIds: List<String>,
             onResult: (Result<Unit>) -> Unit
         ) {
-            hiddenAppointmentId = appointmentId
+            hiddenAppointmentId = appointmentIds.firstOrNull()
+            onResult(Result.success(Unit))
+        }
+
+        override fun hideBarberAppointments(
+            appointmentIds: List<String>,
+            onResult: (Result<Unit>) -> Unit
+        ) {
             onResult(Result.success(Unit))
         }
 

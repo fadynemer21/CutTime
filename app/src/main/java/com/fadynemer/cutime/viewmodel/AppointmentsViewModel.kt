@@ -91,9 +91,20 @@ class AppointmentsViewModel(
         }
     }
 
-    fun deleteCancelledFromHistory(
+    fun deleteFromHistory(
         appointmentId: String
     ) {
+        clearHistory(listOf(appointmentId))
+    }
+
+    fun clearHistory() {
+        clearHistory(
+            uiState.groups.completed.map { it.id } +
+                uiState.groups.cancelled.map { it.id }
+        )
+    }
+
+    private fun clearHistory(appointmentIds: List<String>) {
         val actions = appointmentActions
 
         if (actions == null) {
@@ -106,12 +117,15 @@ class AppointmentsViewModel(
 
         if (uiState.updatingAppointmentId != null) return
 
+        val ids = appointmentIds.distinct()
+        if (ids.isEmpty()) return
+
         uiState = uiState.copy(
-            updatingAppointmentId = appointmentId,
+            updatingAppointmentId = ids.first(),
             errorMessage = null
         )
-        actions.hideCancelledAppointment(
-            appointmentId
+        actions.hideCustomerAppointments(
+            ids
         ) { result ->
             result
                 .onSuccess {

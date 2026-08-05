@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -42,6 +43,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -56,18 +58,23 @@ import com.fadynemer.cutime.components.BarberBottomBar
 import com.fadynemer.cutime.components.BarberDestination
 import com.fadynemer.cutime.components.NotificationIconButton
 import com.fadynemer.cutime.model.Appointment
+import com.fadynemer.cutime.model.Rating
 import com.fadynemer.cutime.navigation.AppRoute
 import com.fadynemer.cutime.notifications.NotificationRegistrationManager
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
+import com.fadynemer.cutime.ui.theme.CutTimeLightGrey
 import com.fadynemer.cutime.ui.theme.CutTimeSuccess
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
 import com.fadynemer.cutime.util.AppointmentDateTime
 import com.fadynemer.cutime.viewmodel.BarberDashboardUiState
 import com.fadynemer.cutime.viewmodel.BarberDashboardViewModel
+import com.fadynemer.cutime.viewmodel.BarberReviewsUiState
+import com.fadynemer.cutime.viewmodel.BarberReviewsViewModel
 import com.fadynemer.cutime.viewmodel.BarberShopReadinessUiState
 import com.fadynemer.cutime.viewmodel.BarberShopReadinessViewModel
 import com.fadynemer.cutime.viewmodel.SessionViewModel
 import com.fadynemer.cutime.viewmodel.NotificationBadgeViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,11 +82,17 @@ fun DashboardScreen(
     navController: NavController,
     sessionViewModel: SessionViewModel = viewModel(),
     dashboardViewModel: BarberDashboardViewModel = viewModel(),
+    reviewsViewModel: BarberReviewsViewModel = viewModel(),
     notificationBadgeViewModel:
         NotificationBadgeViewModel = viewModel(),
     shopReadinessViewModel:
         BarberShopReadinessViewModel = viewModel()
 ) {
+    LaunchedEffect(Unit) {
+        FirebaseAuth.getInstance().currentUser?.uid
+            ?.let(reviewsViewModel::observe)
+    }
+
     CompositionLocalProvider(
         LocalLayoutDirection provides LayoutDirection.Ltr
     ) {
@@ -99,7 +112,7 @@ fun DashboardScreen(
                         NotificationIconButton(
                             unreadCount =
                                 notificationBadgeViewModel.uiState
-                                    .unreadCount,
+                                    .barberUnreadCount,
                             onClick = {
                                 navController.navigate(
                                     AppRoute.Notifications.create(true)
@@ -152,6 +165,8 @@ fun DashboardScreen(
                 uiState = dashboardViewModel.uiState,
                 readinessUiState =
                     shopReadinessViewModel.uiState,
+                reviewsUiState = reviewsViewModel.uiState,
+                onRetryReviews = reviewsViewModel::retry,
                 onRetry = dashboardViewModel::retry,
                 onReadinessRetry =
                     shopReadinessViewModel::retry,
@@ -195,6 +210,8 @@ private fun DashboardContent(
     readinessUiState: BarberShopReadinessUiState,
     onRetry: () -> Unit,
     onReadinessRetry: () -> Unit,
+    reviewsUiState: BarberReviewsUiState,
+    onRetryReviews: () -> Unit,
     onProfileSetup: () -> Unit,
     onServicesSetup: () -> Unit,
     onAvailabilitySetup: () -> Unit,
@@ -316,8 +333,104 @@ private fun DashboardContent(
                         )
                     }
                 }
+
+                item {
+                    DashboardSectionTitle("Customer Reviews")
+                }
+                item {
+                    DashboardReviews(reviewsUiState, onRetryReviews)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun DashboardReviews(
+    uiState: BarberReviewsUiState,
+    onRetry: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            when {
+                uiState.isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .align(Alignment.CenterHorizontally),
+                        color = CutTimeNavy,
+                        strokeWidth = 3.dp
+                    )
+                }
+
+                uiState.errorMessage != null -> {
+                    Text(
+                        text = uiState.errorMessage,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    TextButton(onClick = onRetry) {
+                        Text(stringResource(R.string.action_retry))
+                    }
+                }
+
+                uiState.reviewsWithText.isEmpty() -> {
+                    Text(
+                        text = stringResource(R.string.barber_profile_no_reviews),
+                        color = CutTimeTextSecondary
+                    )
+                }
+
+                else -> {
+                    uiState.reviewsWithText.take(5)
+                        .forEach { rating ->
+                            DashboardReviewRow(rating)
+                        }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DashboardReviewRow(rating: Rating) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = rating.customerName,
+                color = CutTimeNavy,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f)
+            )
+            repeat(5) { index ->
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = if (index < rating.stars) {
+                        com.fadynemer.cutime.ui.theme.CutTimeRed
+                    } else {
+                        CutTimeLightGrey
+                    },
+                    modifier = Modifier.size(15.dp)
+                )
+            }
+        }
+        Text(
+            text = rating.review,
+            color = CutTimeTextSecondary,
+            fontSize = 14.sp
+        )
     }
 }
 

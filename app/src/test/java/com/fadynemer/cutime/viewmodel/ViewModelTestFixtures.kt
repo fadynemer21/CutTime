@@ -96,11 +96,18 @@ internal class FakeAppointmentActionsDataSource :
         completeCallback = onResult
     }
 
-    override fun hideCancelledAppointment(
-        appointmentId: String,
+    override fun hideCustomerAppointments(
+        appointmentIds: List<String>,
         onResult: (Result<Unit>) -> Unit
     ) {
-        hiddenAppointmentId = appointmentId
+        hiddenAppointmentId = appointmentIds.firstOrNull()
+        onResult(Result.success(Unit))
+    }
+
+    override fun hideBarberAppointments(
+        appointmentIds: List<String>,
+        onResult: (Result<Unit>) -> Unit
+    ) {
         onResult(Result.success(Unit))
     }
 

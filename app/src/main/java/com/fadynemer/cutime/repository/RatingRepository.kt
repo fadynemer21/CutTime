@@ -3,6 +3,7 @@ package com.fadynemer.cutime.repository
 import com.fadynemer.cutime.model.AppointmentStatus
 import com.fadynemer.cutime.model.Rating
 import com.fadynemer.cutime.model.RatingRequest
+import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
@@ -74,6 +75,10 @@ class RatingRepository(
             firestore
                 .collection(PROFILES_COLLECTION)
                 .document(request.barberId)
+        val customerProfileReference =
+            firestore
+                .collection(USERS_COLLECTION)
+                .document(customer.uid)
 
         firestore.runTransaction { transaction ->
             val appointment =
@@ -82,6 +87,8 @@ class RatingRepository(
                 transaction.get(ratingReference)
             val barber =
                 transaction.get(barberReference)
+            val customerProfile =
+                transaction.get(customerProfileReference)
 
             if (!appointment.exists()) {
                 throw RatingEligibilityException(
@@ -95,6 +102,12 @@ class RatingRepository(
             ) {
                 throw RatingEligibilityException(
                     "Only the booking customer can rate this appointment."
+                )
+            }
+
+            if (customerProfile.getString("role") != "CUSTOMER") {
+                throw RatingEligibilityException(
+                    "Only customer accounts can submit ratings."
                 )
             }
 
@@ -144,12 +157,10 @@ class RatingRepository(
                     "appointmentId" to request.appointmentId,
                     "customerId" to customer.uid,
                     "barberId" to request.barberId,
-                    "customerName" to
-                        (
-                            customer.displayName
-                                ?: customer.email
-                                ?: "Customer"
-                            ),
+                    "customerName" to customerProfile
+                        .getString("fullName")
+                        ?.trim()
+                        .orEmpty(),
                     "stars" to request.stars,
                     "review" to request.review.trim(),
                     "createdAt" to FieldValue.serverTimestamp()
@@ -195,13 +206,13 @@ class RatingRepository(
                     if (error != null) {
                         onResult(Result.failure(error))
                     } else {
-                        onResult(
-                            Result.success(
-                                snapshot
-                                    ?.documents
-                                    ?.mapNotNull(::mapRating)
-                                    .orEmpty()
-                            )
+                        val ratings = snapshot
+                            ?.documents
+                            ?.mapNotNull(::mapRating)
+                            .orEmpty()
+                        resolveCustomerNames(
+                            ratings = ratings,
+                            onResult = onResult
                         )
                     }
                 }
@@ -264,6 +275,50 @@ class RatingRepository(
         )
     }
 
+    private fun resolveCustomerNames(
+        ratings: List<Rating>,
+        onResult: (Result<List<Rating>>) -> Unit
+    ) {
+        val unresolved = ratings.filter {
+            it.customerName.isBlank() || '@' in it.customerName
+        }
+        if (unresolved.isEmpty()) {
+            onResult(Result.success(ratings))
+            return
+        }
+
+        val appointmentTasks = unresolved.map { rating ->
+            firestore
+                .collection(APPOINTMENTS_COLLECTION)
+                .document(rating.appointmentId)
+                .get()
+        }
+        Tasks.whenAllSuccess<DocumentSnapshot>(appointmentTasks)
+            .addOnSuccessListener { appointments ->
+                val namesByAppointment = appointments.associate {
+                    it.id to it.getString("customerName")
+                        ?.trim()
+                        .orEmpty()
+                }
+                onResult(
+                    Result.success(
+                        ratings.map { rating ->
+                            val resolved =
+                                namesByAppointment[rating.appointmentId]
+                            if (resolved.isNullOrBlank()) {
+                                rating.copy(customerName = "Customer")
+                            } else {
+                                rating.copy(customerName = resolved)
+                            }
+                        }
+                    )
+                )
+            }
+            .addOnFailureListener { error ->
+                onResult(Result.failure(error))
+            }
+    }
+
     private fun validate(
         request: RatingRequest
     ): String? {
@@ -288,5 +343,6 @@ class RatingRepository(
         const val APPOINTMENTS_COLLECTION = "appointments"
         const val RATINGS_COLLECTION = "ratings"
         const val PROFILES_COLLECTION = "barberProfiles"
+        const val USERS_COLLECTION = "users"
     }
 }

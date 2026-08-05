@@ -81,7 +81,7 @@
     <string name="character_count">%1$d/%2$d</string>
     <!-- Remaining screen copy -->
     <string name="barber_card_haircuts_from">Haircuts from &#8362;%1$d</string>
-    <string name="barber_card_next">Next: %1$s</string>
+    <string name="barber_card_next">%1$s</string>
     <string name="appointment_details_title">Appointment Details</string>
     <string name="appointment_review_submitted">Review submitted</string>
     <string name="availability_weekly_hours">Weekly working hours</string>
@@ -140,4 +140,8 @@
     <string name="notifications_empty_hint">Booking updates and appointment reminders will appear here.</string>
     <string name="notification_reminder_intro">You will receive two reminders for each upcoming appointment:</string>
     <string name="rating_completed_only_hint">You can rate this barber after the appointment is completed.</string>
+    <string name="rating_one_star_label">1 star (lowest)</string>
+    <string name="rating_five_star_label">5 stars (best)</string>
+    <string name="rating_selected">%1$d of 5 stars selected</string>
+    <string name="rating_customers_only">Ratings are available only to customer accounts.</string>
 </resources>

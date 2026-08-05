@@ -8,10 +8,35 @@ object AppointmentHistoryPolicy {
         authenticatedUserId: String,
         appointmentCustomerId: String?,
         appointmentStatus: String?,
+        alreadyHidden: Boolean,
+        appointmentEndAtMillis: Long? = null,
+        nowMillis: Long = System.currentTimeMillis()
+    ): Boolean {
+        val isPastUpcoming =
+            appointmentStatus == AppointmentStatus.UPCOMING.name &&
+                appointmentEndAtMillis != null &&
+                appointmentEndAtMillis <= nowMillis
+        return authenticatedUserId == appointmentCustomerId &&
+            (
+                appointmentStatus in setOf(
+                    AppointmentStatus.COMPLETED.name,
+                    AppointmentStatus.CANCELLED.name
+                ) || isPastUpcoming
+                ) &&
+            !alreadyHidden
+    }
+
+    fun canBarberHide(
+        authenticatedUserId: String,
+        appointmentBarberId: String?,
+        appointmentStatus: String?,
         alreadyHidden: Boolean
     ): Boolean {
-        return authenticatedUserId == appointmentCustomerId &&
-            appointmentStatus == AppointmentStatus.CANCELLED.name &&
+        return authenticatedUserId == appointmentBarberId &&
+            appointmentStatus in setOf(
+                AppointmentStatus.COMPLETED.name,
+                AppointmentStatus.CANCELLED.name
+            ) &&
             !alreadyHidden
     }
 }

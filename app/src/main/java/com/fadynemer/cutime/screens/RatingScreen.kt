@@ -55,6 +55,7 @@ fun RatingScreen(
     appointmentId: String,
     onBack: () -> Unit,
     onFinished: () -> Unit,
+    canRate: Boolean = true,
     ratingViewModel: RatingViewModel = viewModel()
 ) {
     val uiState = ratingViewModel.uiState
@@ -97,6 +98,22 @@ fun RatingScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(color = CutTimeNavy)
+                }
+            }
+
+            !canRate -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.rating_customers_only),
+                        color = CutTimeTextSecondary,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
 
@@ -196,7 +213,12 @@ fun RatingScreen(
                                     },
                                 contentDescription =
                                     "$star star rating",
-                                tint = CutTimeRed,
+                                tint =
+                                    if (star <= uiState.stars) {
+                                        CutTimeRed
+                                    } else {
+                                        CutTimeTextSecondary.copy(alpha = 0.35f)
+                                    },
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clickable {
@@ -206,6 +228,30 @@ fun RatingScreen(
                                     }
                             )
                         }
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = stringResource(R.string.rating_one_star_label),
+                            color = CutTimeTextSecondary,
+                            fontSize = 12.sp
+                        )
+                        Text(
+                            text = stringResource(R.string.rating_five_star_label),
+                            color = CutTimeTextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+                    if (uiState.stars > 0) {
+                        Text(
+                            text = stringResource(R.string.rating_selected, uiState.stars),
+                            color = CutTimeNavy,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                     Spacer(modifier = Modifier.height(24.dp))
 

@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 
+import com.fadynemer.cutime.ui.theme.CutTimeRed
 @Composable
 fun NotificationIconButton(
     unreadCount: Int,
@@ -28,7 +29,7 @@ fun NotificationIconButton(
         BadgedBox(
             badge = {
                 if (unreadCount > 0) {
-                    Badge {
+                    Badge(containerColor = CutTimeRed) {
                         Text(
                             if (unreadCount > 99) {
                                 "99+"

@@ -41,11 +41,9 @@ import com.fadynemer.cutime.R
 import com.fadynemer.cutime.components.CustomerDestination
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
-import com.fadynemer.cutime.notifications.NotificationRegistrationManager
 import com.fadynemer.cutime.util.AccountModePreferences
 import com.fadynemer.cutime.viewmodel.CustomerProfileViewModel
 import com.fadynemer.cutime.viewmodel.AccountDeletionViewModel
-import com.fadynemer.cutime.viewmodel.SessionViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,10 +51,8 @@ fun CustomerProfileScreen(
     onHomeSelected: () -> Unit,
     onAppointmentsSelected: () -> Unit,
     onReturnToBarberMode: () -> Unit,
-    onLoggedOut: () -> Unit,
     profileViewModel: CustomerProfileViewModel = viewModel(),
     deletionViewModel: AccountDeletionViewModel = viewModel(),
-    sessionViewModel: SessionViewModel = viewModel()
 ) {
     val uiState = profileViewModel.uiState
     val deletionState = deletionViewModel.uiState
@@ -359,25 +355,6 @@ fun CustomerProfileScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                     }
 
-                    OutlinedButton(
-                        onClick = {
-                            AccountModePreferences.setCustomerMode(
-                                context,
-                                profile.uid,
-                                false
-                            )
-                            NotificationRegistrationManager
-                                .unregisterCurrentDevice {
-                                    sessionViewModel.logout()
-                                    onLoggedOut()
-                                }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                    ) {
-                        Text(stringResource(R.string.action_logout))
-                    }
                 }
             }
         }

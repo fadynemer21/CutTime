@@ -36,7 +36,7 @@ class AppointmentAuthenticationException :
 
 class AppointmentHistoryDeletionException :
     Exception(
-        "Only your cancelled appointments can be removed from history."
+        "Only your completed or cancelled appointments can be removed from history."
     )
 
 interface AppointmentBookingDataSource {
@@ -69,8 +69,13 @@ interface AppointmentActionsDataSource {
         onResult: (Result<Unit>) -> Unit
     )
 
-    fun hideCancelledAppointment(
-        appointmentId: String,
+    fun hideCustomerAppointments(
+        appointmentIds: List<String>,
+        onResult: (Result<Unit>) -> Unit
+    )
+
+    fun hideBarberAppointments(
+        appointmentIds: List<String>,
         onResult: (Result<Unit>) -> Unit
     )
 
@@ -334,6 +339,7 @@ class AppointmentRepository(
                     snapshot
                         ?.documents
                         ?.mapNotNull(::documentToAppointment)
+                        ?.filterNot(Appointment::hiddenFromBarber)
                         .orEmpty()
 
                 onResult(Result.success(appointments))
@@ -368,13 +374,28 @@ class AppointmentRepository(
         )
     }
 
-    override fun hideCancelledAppointment(
-        appointmentId: String,
+    override fun hideCustomerAppointments(
+        appointmentIds: List<String>,
         onResult: (Result<Unit>) -> Unit
     ) {
-        val customerId = auth.currentUser?.uid
+        hideHistoryAppointments(appointmentIds, false, onResult)
+    }
 
-        if (customerId == null) {
+    override fun hideBarberAppointments(
+        appointmentIds: List<String>,
+        onResult: (Result<Unit>) -> Unit
+    ) {
+        hideHistoryAppointments(appointmentIds, true, onResult)
+    }
+
+    private fun hideHistoryAppointments(
+        appointmentIds: List<String>,
+        isBarber: Boolean,
+        onResult: (Result<Unit>) -> Unit
+    ) {
+        val userId = auth.currentUser?.uid
+
+        if (userId == null) {
             onResult(
                 Result.failure(
                     AppointmentAuthenticationException()
@@ -383,40 +404,61 @@ class AppointmentRepository(
             return
         }
 
-        val appointmentReference =
-            firestore
-                .collection(APPOINTMENTS_COLLECTION)
-                .document(appointmentId)
+        val uniqueIds = appointmentIds
+            .filter(String::isNotBlank)
+            .distinct()
+        if (uniqueIds.isEmpty()) {
+            onResult(Result.success(Unit))
+            return
+        }
 
         firestore.runTransaction { transaction ->
-            val appointment =
-                transaction.get(appointmentReference)
-
-            if (
-                !appointment.exists() ||
-                !AppointmentHistoryPolicy.canCustomerHide(
-                    authenticatedUserId = customerId,
-                    appointmentCustomerId =
-                        appointment.getString("customerId"),
-                    appointmentStatus =
-                        appointment.getString("status"),
-                    alreadyHidden =
-                        appointment.getBoolean(
-                            "hiddenFromCustomer"
-                        ) ?: false
-                )
-            ) {
-                throw AppointmentHistoryDeletionException()
+            val records = uniqueIds.map { appointmentId ->
+                val reference = firestore
+                    .collection(APPOINTMENTS_COLLECTION)
+                    .document(appointmentId)
+                reference to transaction.get(reference)
             }
-
-            transaction.update(
-                appointmentReference,
-                mapOf(
-                    "hiddenFromCustomer" to true,
-                    "updatedAt" to
-                        FieldValue.serverTimestamp()
+            records.forEach { (_, appointment) ->
+                val allowed = if (isBarber) {
+                    AppointmentHistoryPolicy.canBarberHide(
+                        authenticatedUserId = userId,
+                        appointmentBarberId =
+                            appointment.getString("barberId"),
+                        appointmentStatus =
+                            appointment.getString("status"),
+                        alreadyHidden =
+                            appointment.getBoolean("hiddenFromBarber") ?: false
+                    )
+                } else {
+                    AppointmentHistoryPolicy.canCustomerHide(
+                        authenticatedUserId = userId,
+                        appointmentCustomerId =
+                            appointment.getString("customerId"),
+                        appointmentStatus =
+                            appointment.getString("status"),
+                        alreadyHidden =
+                            appointment.getBoolean("hiddenFromCustomer") ?: false,
+                        appointmentEndAtMillis =
+                            appointment.getTimestamp("endAt")
+                                ?.toDate()
+                                ?.time
+                    )
+                }
+                if (!appointment.exists() || !allowed) {
+                    throw AppointmentHistoryDeletionException()
+                }
+            }
+            records.forEach { (reference, _) ->
+                transaction.update(
+                    reference,
+                    mapOf(
+                        (if (isBarber) "hiddenFromBarber"
+                        else "hiddenFromCustomer") to true,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
                 )
-            )
+            }
         }.addOnSuccessListener {
             onResult(Result.success(Unit))
         }.addOnFailureListener { error ->
@@ -845,6 +887,9 @@ class AppointmentRepository(
                 ),
             hiddenFromCustomer =
                 document.getBoolean("hiddenFromCustomer")
+                    ?: false,
+            hiddenFromBarber =
+                document.getBoolean("hiddenFromBarber")
                     ?: false,
             ratingId = document.getString("ratingId"),
             createdAtMillis =

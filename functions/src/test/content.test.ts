@@ -49,19 +49,17 @@ function appointment(
 }
 
 describe("notification content", () => {
-  it("creates customer and barber booking targets", () => {
+  it("creates a barber booking target", () => {
     const targets = bookingCreatedTargets(appointment());
 
-    assert.equal(targets.length, 2);
-    assert.equal(targets[0]?.userId, "customer-1");
+    assert.equal(targets.length, 1);
+    assert.equal(targets[0]?.userId, "barber-1");
     assert.equal(
       targets[0]?.content.type,
       "APPOINTMENT_BOOKED",
     );
-    assert.match(targets[0]?.content.message ?? "", /North Chair/);
-    assert.equal(targets[1]?.userId, "barber-1");
     assert.match(
-      targets[1]?.content.message ?? "",
+      targets[0]?.content.message ?? "",
       /Maya Customer/,
     );
   });
@@ -88,24 +86,22 @@ describe("notification content", () => {
       }),
     );
 
-    assert.equal(targets.length, 2);
+    assert.equal(targets.length, 1);
     assert.ok(
-      targets.every((target) =>
-        target.content.message.includes(
+      targets[0]?.content.message.includes(
           "August 3, 2026 at 09:00",
         ),
-      ),
     );
   });
 
-  it("creates a review prompt after completion", () => {
+  it("creates a barber completion update", () => {
     const targets = completionTargets(
       appointment({status: "COMPLETED"}),
     );
 
-    assert.equal(targets[0]?.content.type, "REVIEW_REQUEST");
+    assert.equal(targets.length, 1);
     assert.equal(
-      targets[1]?.content.type,
+      targets[0]?.content.type,
       "APPOINTMENT_COMPLETED",
     );
   });
@@ -129,8 +125,8 @@ describe("notification content", () => {
       appointment({status: "COMPLETED"}),
     );
 
-    assert.equal(targets.length, 2);
-    assert.equal(targets[0]?.content.type, "REVIEW_REQUEST");
+    assert.equal(targets.length, 1);
+    assert.equal(targets[0]?.content.type, "APPOINTMENT_COMPLETED");
   });
 
   it("detects rescheduled start times", () => {
@@ -139,7 +135,7 @@ describe("notification content", () => {
       appointment({startAt: Timestamp.fromMillis(2_900_000)}),
     );
 
-    assert.equal(targets.length, 2);
+    assert.equal(targets.length, 1);
     assert.equal(
       targets[0]?.content.type,
       "APPOINTMENT_RESCHEDULED",

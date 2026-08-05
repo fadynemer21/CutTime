@@ -5,12 +5,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -31,24 +33,30 @@ import com.fadynemer.cutime.components.CustomerDestination
 import com.fadynemer.cutime.components.NotificationIconButton
 import com.fadynemer.cutime.model.CatalogSource
 import com.fadynemer.cutime.navigation.AppRoute
+import com.fadynemer.cutime.notifications.NotificationRegistrationManager
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeLightGrey
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
 import com.fadynemer.cutime.viewmodel.HomeViewModel
+import com.fadynemer.cutime.util.AccountModePreferences
 import com.fadynemer.cutime.viewmodel.NotificationBadgeViewModel
+import com.fadynemer.cutime.viewmodel.SessionViewModel
 import com.fadynemer.cutime.util.UiTestTags
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun HomeScreen(
     navController: NavController,
     homeViewModel: HomeViewModel = viewModel(),
+    sessionViewModel: SessionViewModel = viewModel(),
     notificationBadgeViewModel:
         NotificationBadgeViewModel = viewModel()
 ) {
     var searchQuery by rememberSaveable {
         mutableStateOf("")
     }
+    val context = LocalContext.current
 
     val uiState = homeViewModel.uiState
     val barbers = uiState.barbers
@@ -118,17 +126,38 @@ fun HomeScreen(
                         modifier = Modifier.size(150.dp)
                     )
 
-                    NotificationIconButton(
-                        unreadCount =
-                            notificationBadgeViewModel.uiState
-                                .unreadCount,
-                        onClick = {
-                            navController.navigate(
-                                AppRoute.Notifications.create(false)
+                    Row(modifier = Modifier.align(Alignment.CenterEnd)) {
+                        NotificationIconButton(
+                            unreadCount = notificationBadgeViewModel.uiState.customerCancellationUnreadCount,
+                            onClick = {
+                                navController.navigate(
+                                    AppRoute.Notifications.create(false)
+                                )
+                            }
+                        )
+                        IconButton(onClick = {
+                            FirebaseAuth.getInstance()
+                                .currentUser?.uid
+                                ?.let { userId ->
+                                    AccountModePreferences.setCustomerMode(
+                                        context, userId, false
+                                    )
+                                }
+                            NotificationRegistrationManager.unregisterCurrentDevice {
+                                sessionViewModel.logout()
+                                navController.navigate(AppRoute.Welcome.pattern) {
+                                    popUpTo(0) { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            }
+                        }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Logout,
+                                stringResource(R.string.content_description_logout),
+                                tint = CutTimeNavy
                             )
-                        },
-                        modifier = Modifier.align(Alignment.CenterEnd)
-                    )
+                        }
+                    }
                 }
 
                 Text(

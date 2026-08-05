@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import com.fadynemer.cutime.model.NotificationPreferences
+import com.fadynemer.cutime.model.NotificationType
 import com.fadynemer.cutime.model.UserNotification
 import com.fadynemer.cutime.repository.AppointmentObservation
 import com.fadynemer.cutime.repository.NotificationDataSource
@@ -323,7 +324,9 @@ class NotificationPreferencesViewModel(
 }
 
 data class NotificationBadgeUiState(
-    val unreadCount: Int = 0
+    val unreadCount: Int = 0,
+    val barberUnreadCount: Int = 0,
+    val customerCancellationUnreadCount: Int = 0
 )
 
 class NotificationBadgeViewModel(
@@ -336,9 +339,18 @@ class NotificationBadgeViewModel(
     private val observation =
         repository.observeNotifications { result ->
             result.onSuccess { notifications ->
+                val unread = notifications.filterNot(
+                    UserNotification::isRead
+                )
                 uiState = NotificationBadgeUiState(
-                    unreadCount =
-                        notifications.count { !it.isRead }
+                    unreadCount = unread.size,
+                    barberUnreadCount = unread.count {
+                        it.barberId == it.userId
+                    },
+                    customerCancellationUnreadCount = unread.count {
+                        it.type == NotificationType.APPOINTMENT_CANCELLED &&
+                            it.barberId != it.userId
+                    }
                 )
             }
         }

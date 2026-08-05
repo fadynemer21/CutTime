@@ -10,18 +10,6 @@ export function bookingCreatedTargets(
 ): NotificationTarget[] {
   return [
     {
-      userId: appointment.customerId,
-      content: {
-        type: "APPOINTMENT_BOOKED",
-        title: "Appointment confirmed",
-        message:
-          `${appointment.serviceName} with ${appointment.barberName} ` +
-          `is booked for ${humanAppointmentTime(appointment)}.`,
-        appointmentId: appointment.appointmentId,
-        barberId: appointment.barberId,
-      },
-    },
-    {
       userId: appointment.barberId,
       content: {
         type: "APPOINTMENT_BOOKED",
@@ -104,18 +92,6 @@ export function rescheduleTargets(
 
   return [
     {
-      userId: appointment.customerId,
-      content: {
-        type: "APPOINTMENT_RESCHEDULED",
-        title: "Appointment rescheduled",
-        message:
-          `Your ${appointment.serviceName} appointment is now ` +
-          `scheduled for ${when}.`,
-        appointmentId: appointment.appointmentId,
-        barberId: appointment.barberId,
-      },
-    },
-    {
       userId: appointment.barberId,
       content: {
         type: "APPOINTMENT_RESCHEDULED",
@@ -133,18 +109,6 @@ export function completionTargets(
   appointment: AppointmentRecord,
 ): NotificationTarget[] {
   return [
-    {
-      userId: appointment.customerId,
-      content: {
-        type: "REVIEW_REQUEST",
-        title: "How was your appointment?",
-        message:
-          `Rate your ${appointment.serviceName} experience with ` +
-          `${appointment.barberName}.`,
-        appointmentId: appointment.appointmentId,
-        barberId: appointment.barberId,
-      },
-    },
     {
       userId: appointment.barberId,
       content: {

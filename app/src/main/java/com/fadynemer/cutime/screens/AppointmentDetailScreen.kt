@@ -68,6 +68,7 @@ import com.fadynemer.cutime.viewmodel.AppointmentDetailViewModel
 fun AppointmentDetailScreen(
     appointmentId: String,
     isBarberView: Boolean,
+    canRate: Boolean = true,
     onBack: () -> Unit,
     onReschedule: (String) -> Unit,
     onRate: (String) -> Unit,
@@ -148,6 +149,7 @@ fun AppointmentDetailScreen(
                     AppointmentDetailContent(
                         appointment = uiState.appointment,
                         isBarberView = isBarberView,
+                        canRate = canRate,
                         isUpdating = uiState.isUpdating,
                         errorMessage = uiState.errorMessage,
                         successMessage = uiState.successMessage,
@@ -220,6 +222,7 @@ fun AppointmentDetailScreen(
 private fun AppointmentDetailContent(
     appointment: Appointment,
     isBarberView: Boolean,
+    canRate: Boolean,
     isUpdating: Boolean,
     errorMessage: String?,
     successMessage: String?,
@@ -356,6 +359,7 @@ private fun AppointmentDetailContent(
             }
         } else if (
             !isBarberView &&
+            canRate &&
             appointment.status == AppointmentStatus.COMPLETED &&
             appointment.ratingId == null
         ) {
