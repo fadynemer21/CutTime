@@ -50,25 +50,6 @@ class BarberReviewsViewModelTest {
 
         assertFalse(viewModel.uiState.isLoading)
         assertEquals(ratings, viewModel.uiState.ratings)
-        assertEquals(
-            listOf("one"),
-            viewModel.uiState.reviewsWithText.map { it.id }
-        )
-    }
-
-    @Test
-    fun whitespaceOnlyReview_isNotShownAsWrittenReview() {
-        val repository = FakeRatingDataSource()
-        val viewModel = BarberReviewsViewModel(repository)
-        viewModel.observe("barber_1")
-
-        repository.emit(
-            Result.success(
-                listOf(rating("one", "   "))
-            )
-        )
-
-        assertTrue(viewModel.uiState.reviewsWithText.isEmpty())
     }
 
     @Test
@@ -129,6 +110,34 @@ class BarberReviewsViewModelTest {
         assertTrue(viewModel.uiState.isLoading)
     }
 
+    @Test
+    fun deleteReview_deletesSelectedRating() {
+        val repository = FakeRatingDataSource()
+        val viewModel = BarberReviewsViewModel(repository)
+
+        viewModel.deleteReview("appointment_1")
+
+        assertEquals("appointment_1", repository.deletedAppointmentId)
+        assertEquals("appointment_1", viewModel.uiState.deletingRatingId)
+
+        repository.completeDelete(Result.success(Unit))
+
+        assertEquals(null, viewModel.uiState.deletingRatingId)
+        assertEquals(null, viewModel.uiState.actionErrorMessage)
+    }
+
+    @Test
+    fun failedDelete_exposesRepositoryMessage() {
+        val repository = FakeRatingDataSource()
+        val viewModel = BarberReviewsViewModel(repository)
+
+        viewModel.deleteReview("appointment_1")
+        repository.completeDelete(Result.failure(Exception("Delete failed")))
+
+        assertEquals(null, viewModel.uiState.deletingRatingId)
+        assertEquals("Delete failed", viewModel.uiState.actionErrorMessage)
+    }
+
     private fun rating(
         id: String,
         review: String
@@ -146,6 +155,8 @@ class BarberReviewsViewModelTest {
     private class FakeRatingDataSource : RatingDataSource {
         private var callback:
             ((Result<List<Rating>>) -> Unit)? = null
+        private var deleteCallback:
+            ((Result<Unit>) -> Unit)? = null
 
         var observedBarberId: String? = null
             private set
@@ -153,12 +164,22 @@ class BarberReviewsViewModelTest {
             private set
         var stopCalls = 0
             private set
+        var deletedAppointmentId: String? = null
+            private set
 
         override fun submitRating(
             request: RatingRequest,
             onResult: (Result<Unit>) -> Unit
         ) {
             error("Not used")
+        }
+
+        override fun deleteRating(
+            appointmentId: String,
+            onResult: (Result<Unit>) -> Unit
+        ) {
+            deletedAppointmentId = appointmentId
+            deleteCallback = onResult
         }
 
         override fun observeBarberRatings(
@@ -182,6 +203,10 @@ class BarberReviewsViewModelTest {
 
         fun emit(result: Result<List<Rating>>) {
             callback?.invoke(result)
+        }
+
+        fun completeDelete(result: Result<Unit>) {
+            deleteCallback?.invoke(result)
         }
     }
 }

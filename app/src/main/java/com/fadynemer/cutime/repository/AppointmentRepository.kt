@@ -678,7 +678,8 @@ class AppointmentRepository(
         releaseSlots: Boolean,
         onResult: (Result<Unit>) -> Unit
     ) {
-        if (auth.currentUser == null) {
+        val userId = auth.currentUser?.uid
+        if (userId == null) {
             onResult(
                 Result.failure(
                     AppointmentAuthenticationException()
@@ -725,6 +726,43 @@ class AppointmentRepository(
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
             )
+
+            if (
+                newStatus == AppointmentStatus.CANCELLED &&
+                snapshot.getString("barberId") == userId
+            ) {
+                val customerId =
+                    snapshot.getString("customerId")
+                        ?: throw IllegalStateException(
+                            "The appointment customer is invalid."
+                        )
+                val barberId =
+                    snapshot.getString("barberId")
+                        ?: throw IllegalStateException(
+                            "The appointment barber is invalid."
+                        )
+                val notificationId =
+                    "cancelled_" + appointmentId
+                transaction.set(
+                    firestore
+                        .collection(USERS_COLLECTION)
+                        .document(customerId)
+                        .collection(NOTIFICATIONS_COLLECTION)
+                        .document(notificationId),
+                    hashMapOf(
+                        "notificationId" to notificationId,
+                        "userId" to customerId,
+                        "type" to "APPOINTMENT_CANCELLED",
+                        "title" to "Appointment cancelled",
+                        "message" to "Cancelled by " +
+                            snapshot.getString("barberName").orEmpty() + ".",
+                        "appointmentId" to appointmentId,
+                        "barberId" to barberId,
+                        "isRead" to false,
+                        "createdAt" to FieldValue.serverTimestamp()
+                    )
+                )
+            }
 
             if (releaseSlots) {
                 slotIds.forEach { slotId ->
@@ -908,6 +946,7 @@ class AppointmentRepository(
         const val APPOINTMENTS_COLLECTION = "appointments"
         const val BOOKING_SLOTS_COLLECTION = "bookingSlots"
         const val USERS_COLLECTION = "users"
+        const val NOTIFICATIONS_COLLECTION = "notifications"
         const val AVAILABILITY_COLLECTION = "barberAvailability"
         const val FIRESTORE_BATCH_WRITE_LIMIT = 500
     }

@@ -9,6 +9,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import java.util.UUID
 
 class RatingEligibilityException(
     message: String
@@ -17,6 +18,11 @@ class RatingEligibilityException(
 interface RatingDataSource {
     fun submitRating(
         request: RatingRequest,
+        onResult: (Result<Unit>) -> Unit
+    )
+
+    fun deleteRating(
+        appointmentId: String,
         onResult: (Result<Unit>) -> Unit
     )
 
@@ -71,22 +77,23 @@ class RatingRepository(
             firestore
                 .collection(RATINGS_COLLECTION)
                 .document(request.appointmentId)
-        val barberReference =
-            firestore
-                .collection(PROFILES_COLLECTION)
-                .document(request.barberId)
         val customerProfileReference =
             firestore
                 .collection(USERS_COLLECTION)
                 .document(customer.uid)
+        val notificationId = "review_" + UUID.randomUUID()
+        val barberNotificationReference =
+            firestore
+                .collection(USERS_COLLECTION)
+                .document(request.barberId)
+                .collection(NOTIFICATIONS_COLLECTION)
+                .document(notificationId)
 
         firestore.runTransaction { transaction ->
             val appointment =
                 transaction.get(appointmentReference)
             val existingRating =
                 transaction.get(ratingReference)
-            val barber =
-                transaction.get(barberReference)
             val customerProfile =
                 transaction.get(customerProfileReference)
 
@@ -135,21 +142,6 @@ class RatingRepository(
                 )
             }
 
-            if (!barber.exists()) {
-                throw RatingEligibilityException(
-                    "The barber profile no longer exists."
-                )
-            }
-
-            val previousCount =
-                barber.getLong("ratingCount") ?: 0L
-            val previousSum =
-                barber.getLong("ratingSum") ?: 0L
-            val newCount = previousCount + 1L
-            val newSum = previousSum + request.stars
-            val newAverage =
-                newSum.toDouble() / newCount.toDouble()
-
             transaction.set(
                 ratingReference,
                 hashMapOf(
@@ -161,35 +153,84 @@ class RatingRepository(
                         .getString("fullName")
                         ?.trim()
                         .orEmpty(),
+                    "notificationId" to notificationId,
                     "stars" to request.stars,
                     "review" to request.review.trim(),
                     "createdAt" to FieldValue.serverTimestamp()
                 )
             )
-
-            transaction.update(
-                barberReference,
-                mapOf(
-                    "ratingCount" to newCount,
-                    "ratingSum" to newSum,
-                    "ratingAverage" to newAverage,
-                    "lastRatingId" to request.appointmentId,
-                    "updatedAt" to FieldValue.serverTimestamp()
+            val customerName = customerProfile
+                .getString("fullName")
+                ?.trim()
+                .orEmpty()
+            transaction.set(
+                barberNotificationReference,
+                hashMapOf(
+                    "notificationId" to notificationId,
+                    "userId" to request.barberId,
+                    "type" to "GENERAL",
+                    "title" to "New review",
+                    "message" to customerName +
+                        " left a review.",
+                    "appointmentId" to request.appointmentId,
+                    "barberId" to request.barberId,
+                    "isRead" to false,
+                    "createdAt" to FieldValue.serverTimestamp()
                 )
             )
-
-            transaction.update(
-                appointmentReference,
+        }.addOnSuccessListener {
+            appointmentReference.update(
                 mapOf(
                     "ratingId" to request.appointmentId,
                     "updatedAt" to FieldValue.serverTimestamp()
                 )
-            )
-        }.addOnSuccessListener {
-            onResult(Result.success(Unit))
+            ).addOnCompleteListener {
+                onResult(Result.success(Unit))
+            }
         }.addOnFailureListener { error ->
             onResult(Result.failure(error))
         }
+    }
+
+    override fun deleteRating(
+        appointmentId: String,
+        onResult: (Result<Unit>) -> Unit
+    ) {
+        val customerId = auth.currentUser?.uid
+        if (customerId == null) {
+            onResult(Result.failure(AppointmentAuthenticationException()))
+            return
+        }
+        if (appointmentId.isBlank()) {
+            onResult(
+                Result.failure(
+                    IllegalArgumentException("The review is invalid.")
+                )
+            )
+            return
+        }
+
+        val ratingReference = firestore
+            .collection(RATINGS_COLLECTION)
+            .document(appointmentId)
+        val appointmentReference = firestore
+            .collection(APPOINTMENTS_COLLECTION)
+            .document(appointmentId)
+
+        ratingReference.delete()
+            .addOnSuccessListener {
+                appointmentReference.update(
+                    mapOf(
+                        "ratingId" to FieldValue.delete(),
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                ).addOnCompleteListener {
+                    onResult(Result.success(Unit))
+                }
+            }
+            .addOnFailureListener { error ->
+                onResult(Result.failure(error))
+            }
     }
 
     override fun observeBarberRatings(
@@ -280,7 +321,9 @@ class RatingRepository(
         onResult: (Result<List<Rating>>) -> Unit
     ) {
         val unresolved = ratings.filter {
-            it.customerName.isBlank() || '@' in it.customerName
+            it.customerName.isBlank() ||
+                '@' in it.customerName ||
+                it.customerName.equals("Customer", ignoreCase = true)
         }
         if (unresolved.isEmpty()) {
             onResult(Result.success(ratings))
@@ -293,29 +336,36 @@ class RatingRepository(
                 .document(rating.appointmentId)
                 .get()
         }
-        Tasks.whenAllSuccess<DocumentSnapshot>(appointmentTasks)
-            .addOnSuccessListener { appointments ->
-                val namesByAppointment = appointments.associate {
-                    it.id to it.getString("customerName")
-                        ?.trim()
-                        .orEmpty()
-                }
-                onResult(
-                    Result.success(
-                        ratings.map { rating ->
-                            val resolved =
-                                namesByAppointment[rating.appointmentId]
-                            if (resolved.isNullOrBlank()) {
-                                rating.copy(customerName = "Customer")
-                            } else {
-                                rating.copy(customerName = resolved)
-                            }
+        Tasks.whenAllComplete(appointmentTasks)
+            .addOnCompleteListener {
+                val namesByAppointment = unresolved
+                    .zip(appointmentTasks)
+                    .mapNotNull { (rating, task) ->
+                        val appointment =
+                            task.takeIf { it.isSuccessful }?.result
+                        val name = appointment
+                            ?.getString("customerName")
+                            ?.trim()
+                            ?.takeIf(String::isNotBlank)
+                            ?: return@mapNotNull null
+                        rating.appointmentId to name
+                    }.toMap()
+                val resolvedRatings = ratings.map { rating ->
+                    val resolved =
+                        namesByAppointment[rating.appointmentId]
+                    if (resolved.isNullOrBlank()) {
+                        rating
+                    } else {
+                        if (resolved != rating.customerName) {
+                            firestore
+                                .collection(RATINGS_COLLECTION)
+                                .document(rating.id)
+                                .update("customerName", resolved)
                         }
-                    )
-                )
-            }
-            .addOnFailureListener { error ->
-                onResult(Result.failure(error))
+                        rating.copy(customerName = resolved)
+                    }
+                }
+                onResult(Result.success(resolvedRatings))
             }
     }
 
@@ -342,7 +392,7 @@ class RatingRepository(
     private companion object {
         const val APPOINTMENTS_COLLECTION = "appointments"
         const val RATINGS_COLLECTION = "ratings"
-        const val PROFILES_COLLECTION = "barberProfiles"
         const val USERS_COLLECTION = "users"
+        const val NOTIFICATIONS_COLLECTION = "notifications"
     }
 }

@@ -33,12 +33,6 @@ service cloud.firestore {
       );
     }
 
-    function ratingAfter(ratingId) {
-      return getAfter(
-        /databases/$(database)/documents/ratings/$(ratingId)
-      );
-    }
-
     function selectedService(barberId, serviceId) {
       return get(
         /databases/$(database)/documents/barberProfiles/$(barberId)/services/$(serviceId)
@@ -54,12 +48,6 @@ service cloud.firestore {
     function selectedAvailability(barberId) {
       return get(
         /databases/$(database)/documents/barberAvailability/$(barberId)
-      );
-    }
-
-    function barberAfter(barberId) {
-      return getAfter(
-        /databases/$(database)/documents/barberProfiles/$(barberId)
       );
     }
 
@@ -91,9 +79,70 @@ service cloud.firestore {
       match /notifications/{notificationId} {
         allow read: if ownsUser(userId);
 
-        // Trusted Cloud Functions create notification records through the
-        // Admin SDK. Mobile clients can only acknowledge or remove their own.
-        allow create: if false;
+        // A customer may atomically create exactly one barber notification
+        // for a genuine rating. Other notification types remain server-only.
+        allow create: if
+          request.resource.data.keys().hasOnly([
+              'notificationId',
+              'userId',
+              'type',
+              'title',
+              'message',
+              'appointmentId',
+              'barberId',
+              'isRead',
+              'createdAt'
+            ]) &&
+          request.resource.data.notificationId == notificationId &&
+          request.resource.data.userId == userId &&
+          request.resource.data.isRead == false &&
+          request.resource.data.createdAt == request.time &&
+          (
+            (
+              hasRole('CUSTOMER') &&
+              request.resource.data.barberId == userId &&
+              request.resource.data.type == 'GENERAL' &&
+              request.resource.data.title == 'New review' &&
+              request.resource.data.message ==
+                currentUser().data.fullName + ' left a review.' &&
+              getAfter(
+                /databases/$(database)/documents/ratings/$(request.resource.data.appointmentId)
+              ).data.customerId == request.auth.uid &&
+              getAfter(
+                /databases/$(database)/documents/ratings/$(request.resource.data.appointmentId)
+              ).data.barberId == userId &&
+              getAfter(
+                /databases/$(database)/documents/ratings/$(request.resource.data.appointmentId)
+              ).data.notificationId == notificationId
+            ) ||
+            (
+              hasRole('BARBER') &&
+              notificationId ==
+                'cancelled_' + request.resource.data.appointmentId &&
+              request.resource.data.type ==
+                'APPOINTMENT_CANCELLED' &&
+              request.resource.data.title ==
+                'Appointment cancelled' &&
+              request.resource.data.barberId == request.auth.uid &&
+              get(
+                /databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)
+              ).data.status == 'UPCOMING' &&
+              get(
+                /databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)
+              ).data.barberId == request.auth.uid &&
+              get(
+                /databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)
+              ).data.customerId == userId &&
+              request.resource.data.message ==
+                'Cancelled by ' +
+                get(
+                  /databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)
+                ).data.barberName + '.' &&
+              getAfter(
+                /databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)
+              ).data.status == 'CANCELLED'
+            )
+          );
 
         allow update: if ownsUser(userId) &&
           request.resource.data.diff(resource.data).affectedKeys()
@@ -331,11 +380,24 @@ service cloud.firestore {
       allow update: if hasRole('CUSTOMER') &&
         resource.data.customerId == request.auth.uid &&
         resource.data.status == 'COMPLETED' &&
-        request.resource.data.status == resource.data.status &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['ratingId', 'updatedAt']) &&
         request.resource.data.ratingId == appointmentId &&
-        request.resource.data.updatedAt == request.time;
+        request.resource.data.updatedAt == request.time &&
+        get(/databases/$(database)/documents/ratings/$(appointmentId))
+          .data.customerId == request.auth.uid &&
+        get(/databases/$(database)/documents/ratings/$(appointmentId))
+          .data.barberId == resource.data.barberId;
+
+      allow update: if hasRole('CUSTOMER') &&
+        resource.data.customerId == request.auth.uid &&
+        resource.data.status == 'COMPLETED' &&
+        resource.data.get('ratingId', '') == appointmentId &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['ratingId', 'updatedAt']) &&
+        !('ratingId' in request.resource.data) &&
+        request.resource.data.updatedAt == request.time &&
+        !exists(/databases/$(database)/documents/ratings/$(appointmentId));
 
       allow delete: if false;
     }
@@ -371,38 +433,6 @@ service cloud.firestore {
           request.resource.data.description.size() >= 10 &&
           request.resource.data.description.size() <= 500 &&
           request.resource.data.updatedAt == request.time;
-
-      allow update: if hasRole('CUSTOMER') &&
-        request.auth.uid != barberId &&
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly([
-            'ratingCount',
-            'ratingSum',
-            'ratingAverage',
-            'lastRatingId',
-            'updatedAt'
-          ]) &&
-        request.resource.data.lastRatingId is string &&
-        ratingAfter(
-          request.resource.data.lastRatingId
-        ).data.barberId == barberId &&
-        ratingAfter(
-          request.resource.data.lastRatingId
-        ).data.customerId == request.auth.uid &&
-        ratingAfter(
-          request.resource.data.lastRatingId
-        ).data.createdAt == request.time &&
-        request.resource.data.ratingCount ==
-          resource.data.get('ratingCount', 0) + 1 &&
-        request.resource.data.ratingSum ==
-          resource.data.get('ratingSum', 0) +
-            ratingAfter(
-              request.resource.data.lastRatingId
-            ).data.stars &&
-        request.resource.data.ratingAverage ==
-          request.resource.data.ratingSum /
-            request.resource.data.ratingCount &&
-        request.resource.data.updatedAt == request.time;
 
       allow delete: if false;
 
@@ -584,15 +614,23 @@ service cloud.firestore {
         get(
           /databases/$(database)/documents/appointments/$(ratingId)
         ).data.barberId == request.resource.data.barberId &&
-        get(
-          /databases/$(database)/documents/appointments/$(ratingId)
-        ).data.status == 'COMPLETED' &&
-        appointmentAfter(ratingId).data.ratingId == ratingId &&
-        barberAfter(
-          request.resource.data.barberId
-        ).data.lastRatingId == ratingId;
+        get(/databases/$(database)/documents/appointments/$(ratingId)).data.status == 'COMPLETED';
 
-      allow update, delete: if false;
+      allow update: if request.resource.data.diff(resource.data)
+          .affectedKeys().hasOnly(['customerName']) &&
+        request.resource.data.customerName is string &&
+        (
+          (hasRole('CUSTOMER') &&
+            resource.data.customerId == request.auth.uid &&
+            request.resource.data.customerName == currentUser().data.fullName) ||
+          (hasRole('BARBER') &&
+            resource.data.barberId == request.auth.uid &&
+            request.resource.data.customerName ==
+              get(/databases/$(database)/documents/appointments/$(ratingId)).data.customerName)
+        );
+
+      allow delete: if hasRole('CUSTOMER') &&
+        resource.data.customerId == request.auth.uid;
     }
   }
 }

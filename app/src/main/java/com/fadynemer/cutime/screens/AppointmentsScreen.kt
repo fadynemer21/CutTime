@@ -661,7 +661,7 @@ private fun AppointmentStatusBadge(
     val color =
         when {
             isCancelled -> CutTimeRed
-            isCompleted -> CutTimeTextSecondary
+            isCompleted -> CutTimeSuccess
             else -> CutTimeSuccess
         }
 

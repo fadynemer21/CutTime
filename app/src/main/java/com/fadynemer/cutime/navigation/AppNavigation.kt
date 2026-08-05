@@ -11,6 +11,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.fadynemer.cutime.data.BarberCatalogCache
+import com.fadynemer.cutime.screens.BarberReviewsScreen
 import com.fadynemer.cutime.screens.BarberProfileScreen
 import com.fadynemer.cutime.screens.AppointmentDetailScreen
 import com.fadynemer.cutime.screens.BarberAvailabilityScreen
@@ -188,7 +189,29 @@ fun AppNavigation(
                     navController.navigate(
                         AppRoute.Booking.create(barberId)
                     )
+                },
+                onViewReviews = { selectedBarberId ->
+                    navController.navigate(
+                        AppRoute.BarberReviews.create(selectedBarberId)
+                    )
                 }
+            )
+        }
+
+        composable(
+            route = AppRoute.BarberReviews.pattern,
+            arguments = listOf(
+                navArgument(RouteArguments.BARBER_ID) {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            BarberReviewsScreen(
+                barberId = backStackEntry.arguments
+                    ?.getString(RouteArguments.BARBER_ID)
+                    .orEmpty(),
+                onBack = navController::navigateUp,
+                canDeleteReviews = canCurrentAccountRate
             )
         }
 

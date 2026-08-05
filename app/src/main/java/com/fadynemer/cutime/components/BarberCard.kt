@@ -22,6 +22,7 @@ import com.fadynemer.cutime.ui.theme.CutTimeLightGrey
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeRed
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
+import com.fadynemer.cutime.util.RatingAverage
 
 @Composable
 fun BarberCard(
@@ -87,7 +88,7 @@ fun BarberCard(
                     Spacer(modifier = Modifier.width(4.dp))
 
                     Text(
-                        text = barberShop.rating.toString(),
+                        text = RatingAverage.format(barberShop.rating),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )

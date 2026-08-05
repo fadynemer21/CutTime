@@ -10,6 +10,7 @@ import {
 } from "@firebase/rules-unit-testing";
 import {
   collection,
+  deleteField,
   deleteDoc,
   doc,
   getDoc,
@@ -422,6 +423,77 @@ test("owning barber can complete a future upcoming appointment", async () => {
   completion.delete(doc(database, "bookingSlots/future_slot"));
   await assertSucceeds(completion.commit());
 });
+
+test("barber cancellation creates an unread customer notification", async () => {
+  await environment.withSecurityRulesDisabled(async (context) => {
+    const database = context.firestore();
+    await setDoc(doc(database, "appointments/future-cancel"), {
+      appointmentId: "future-cancel",
+      customerId: "customer",
+      customerName: "Customer One",
+      customerEmail: "customer@example.com",
+      barberId: "barber",
+      barberName: "Test Studio",
+      serviceId: "service",
+      serviceName: "Haircut",
+      price: 50,
+      durationMinutes: 30,
+      appointmentDate: "2099-08-01",
+      appointmentTime: "13:00",
+      startAt: new Date("2099-08-01T10:00:00Z"),
+      endAt: new Date("2099-08-01T10:30:00Z"),
+      slotIds: ["future-cancel_slot"],
+      status: "UPCOMING",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    await setDoc(doc(database, "bookingSlots/future-cancel_slot"), {
+      appointmentId: "future-cancel",
+      barberId: "barber",
+      appointmentDate: "2099-08-01",
+      appointmentTime: "13:00",
+      startAt: new Date("2099-08-01T10:00:00Z"),
+      createdAt: new Date(),
+    });
+  });
+
+  const database = barberDatabase();
+  const cancellation = writeBatch(database);
+  cancellation.update(doc(database, "appointments/future-cancel"), {
+    status: "CANCELLED",
+    updatedAt: serverTimestamp(),
+  });
+  cancellation.delete(
+    doc(database, "bookingSlots/future-cancel_slot"),
+  );
+  cancellation.set(
+    doc(
+      database,
+      "users/customer/notifications/cancelled_future-cancel",
+    ),
+    {
+      notificationId: "cancelled_future-cancel",
+      userId: "customer",
+      type: "APPOINTMENT_CANCELLED",
+      title: "Appointment cancelled",
+      message: "Cancelled by Test Studio.",
+      appointmentId: "future-cancel",
+      barberId: "barber",
+      isRead: false,
+      createdAt: serverTimestamp(),
+    },
+  );
+  await assertSucceeds(cancellation.commit());
+
+  const notification = await getDoc(
+    doc(
+      customerDatabase(),
+      "users/customer/notifications/cancelled_future-cancel",
+    ),
+  );
+  assert.equal(notification.exists(), true);
+  assert.equal(notification.data().isRead, false);
+});
 test("appointment detail is private to customer and barber", async () => {
   await assertSucceeds(
     getDoc(doc(customerDatabase(), "appointments/cancelled")),
@@ -501,22 +573,57 @@ test("customer can submit a rating using the saved username", async () => {
     customerId: "customer",
     barberId: "barber",
     customerName: "Customer One",
+    notificationId: "review-completed-rating",
     stars: 5,
     review: "Great cut",
     createdAt: serverTimestamp(),
   });
-  rating.update(doc(database, "barberProfiles/barber"), {
-    ratingCount: 1,
-    ratingSum: 5,
-    ratingAverage: 5,
-    lastRatingId: "completed-rating",
-    updatedAt: serverTimestamp(),
-  });
-  rating.update(doc(database, "appointments/completed-rating"), {
-    ratingId: "completed-rating",
-    updatedAt: serverTimestamp(),
-  });
+  rating.set(
+    doc(
+      database,
+      "users/barber/notifications/review-completed-rating",
+    ),
+    {
+      notificationId: "review-completed-rating",
+      userId: "barber",
+      type: "GENERAL",
+      title: "New review",
+      message: "Customer One left a review.",
+      appointmentId: "completed-rating",
+      barberId: "barber",
+      isRead: false,
+      createdAt: serverTimestamp(),
+    },
+  );
   await assertSucceeds(rating.commit());
+
+  const reviewNotification = await getDoc(
+    doc(
+      barberDatabase(),
+      "users/barber/notifications/review-completed-rating",
+    ),
+  );
+  assert.equal(reviewNotification.exists(), true);
+  assert.equal(reviewNotification.data().isRead, false);
+
+  await environment.withSecurityRulesDisabled(async (context) => {
+    await updateDoc(
+      doc(context.firestore(), "ratings/completed-rating"),
+      {customerName: "Customer"},
+    );
+  });
+  await assertSucceeds(
+    updateDoc(doc(barberDatabase(), "ratings/completed-rating"), {
+      customerName: "Customer One",
+    }),
+  );
+
+  await assertSucceeds(
+    updateDoc(doc(database, "appointments/completed-rating"), {
+      ratingId: "completed-rating",
+      updatedAt: serverTimestamp(),
+    }),
+  );
 
   await assertSucceeds(
     updateDoc(doc(database, "appointments/completed-rating"), {
@@ -534,14 +641,26 @@ test("customer can submit a rating using the saved username", async () => {
   const savedRating = await getDoc(
     doc(database, "ratings/completed-rating"),
   );
-  const savedBarber = await getDoc(
-    doc(database, "barberProfiles/barber"),
-  );
   assert.equal(savedRating.exists(), true);
+  assert.equal(savedRating.data().customerName, "Customer One");
   assert.equal(savedRating.data().review, "Great cut");
-  assert.equal(savedBarber.data().ratingCount, 1);
-  assert.equal(savedBarber.data().ratingSum, 5);
-  assert.equal(savedBarber.data().ratingAverage, 5);
+
+  await assertFails(
+    deleteDoc(doc(barberDatabase(), "ratings/completed-rating")),
+  );
+  await assertSucceeds(
+    deleteDoc(doc(database, "ratings/completed-rating")),
+  );
+  await assertSucceeds(
+    updateDoc(doc(database, "appointments/completed-rating"), {
+      ratingId: deleteField(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  const deletedRating = await getDoc(
+    doc(database, "ratings/completed-rating"),
+  );
+  assert.equal(deletedRating.exists(), false);
 });
 
 test("barber accounts cannot rate even while using customer features", async () => {
@@ -580,17 +699,6 @@ test("barber accounts cannot rate even while using customer features", async () 
     stars: 5,
     review: "Self review",
     createdAt: serverTimestamp(),
-  });
-  rating.update(doc(database, "barberProfiles/barber"), {
-    ratingCount: 1,
-    ratingSum: 5,
-    ratingAverage: 5,
-    lastRatingId: "barber-completed",
-    updatedAt: serverTimestamp(),
-  });
-  rating.update(doc(database, "appointments/barber-completed"), {
-    ratingId: "barber-completed",
-    updatedAt: serverTimestamp(),
   });
   await assertFails(rating.commit());
 });

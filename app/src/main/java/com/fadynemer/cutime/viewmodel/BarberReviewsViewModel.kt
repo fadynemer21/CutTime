@@ -13,11 +13,10 @@ data class BarberReviewsUiState(
     val barberId: String? = null,
     val isLoading: Boolean = false,
     val ratings: List<Rating> = emptyList(),
+    val deletingRatingId: String? = null,
+    val actionErrorMessage: String? = null,
     val errorMessage: String? = null
-) {
-    val reviewsWithText: List<Rating>
-        get() = ratings.filter { it.review.isNotBlank() }
-}
+)
 
 class BarberReviewsViewModel(
     private val repository: RatingDataSource = RatingRepository()
@@ -74,6 +73,32 @@ class BarberReviewsViewModel(
         observation?.stop()
         observation = null
         observe(barberId)
+    }
+
+    fun deleteReview(appointmentId: String) {
+        if (uiState.deletingRatingId != null) return
+
+        uiState = uiState.copy(
+            deletingRatingId = appointmentId,
+            actionErrorMessage = null
+        )
+        repository.deleteRating(appointmentId) { result ->
+            result
+                .onSuccess {
+                    uiState = uiState.copy(
+                        deletingRatingId = null,
+                        actionErrorMessage = null
+                    )
+                }
+                .onFailure { error ->
+                    uiState = uiState.copy(
+                        deletingRatingId = null,
+                        actionErrorMessage =
+                            error.localizedMessage
+                                ?: "Review could not be deleted."
+                    )
+                }
+        }
     }
 
     override fun onCleared() {

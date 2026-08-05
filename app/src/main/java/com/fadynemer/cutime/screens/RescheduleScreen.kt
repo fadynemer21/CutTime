@@ -207,7 +207,11 @@ fun RescheduleScreen(
                             durationMinutes =
                                 appointment.durationMinutes,
                             occupiedTimes = occupiedTimes
-                        )
+                        ).filterNot { time ->
+                            uiState.selectedDate ==
+                                appointment.appointmentDate &&
+                                time == appointment.appointmentTime
+                        }
                     } else {
                         emptyList()
                     }

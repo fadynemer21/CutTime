@@ -63,6 +63,7 @@ import com.fadynemer.cutime.ui.theme.CutTimeLightGrey
 import com.fadynemer.cutime.ui.theme.CutTimeNavy
 import com.fadynemer.cutime.ui.theme.CutTimeRed
 import com.fadynemer.cutime.ui.theme.CutTimeTextSecondary
+import com.fadynemer.cutime.util.RatingAverage
 import com.fadynemer.cutime.viewmodel.BarberReviewsViewModel
 import com.fadynemer.cutime.viewmodel.BarberGalleryViewModel
 
@@ -72,6 +73,7 @@ fun BarberProfileScreen(
     barberShop: BarberShop?,
     onBack: () -> Unit,
     onBookAppointment: () -> Unit,
+    onViewReviews: (String) -> Unit,
     reviewsViewModel: BarberReviewsViewModel = viewModel(),
     galleryViewModel: BarberGalleryViewModel = viewModel()
 ) {
@@ -133,6 +135,7 @@ fun BarberProfileScreen(
                     onSelectGalleryImage =
                         galleryViewModel::selectImage,
                     onBookAppointment = onBookAppointment,
+                    onViewReviews = onViewReviews,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
@@ -153,6 +156,7 @@ private fun BarberProfileContent(
     onRetryGallery: () -> Unit,
     onSelectGalleryImage: (String) -> Unit,
     onBookAppointment: () -> Unit,
+    onViewReviews: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -258,13 +262,30 @@ private fun BarberProfileContent(
         }
 
         item {
-            ProfileSection(title = "Customer Reviews") {
-                ReviewsContent(
-                    ratings = reviewsState.reviewsWithText,
-                    isLoading = reviewsState.isLoading,
-                    errorMessage = reviewsState.errorMessage,
-                    onRetry = onRetryReviews
-                )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onViewReviews(barberShop.id) }
+            ) {
+                ProfileSection(title = "Customer Reviews") {
+                    ReviewsContent(
+                        ratings = reviewsState.ratings.take(3),
+                        isLoading = reviewsState.isLoading,
+                        errorMessage = reviewsState.errorMessage,
+                        onRetry = onRetryReviews
+                    )
+                    if (reviewsState.ratings.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = stringResource(
+                                R.string.barber_profile_view_all_reviews,
+                                reviewsState.ratings.size
+                            ),
+                            color = CutTimeNavy,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             }
         }
 
@@ -407,9 +428,9 @@ private fun ReviewsContent(
         }
 
         else -> {
-            ratings.take(5).forEachIndexed { index, rating ->
+            ratings.forEachIndexed { index, rating ->
                 RatingRow(rating)
-                if (index < ratings.take(5).lastIndex) {
+                if (index < ratings.lastIndex) {
                     Spacer(modifier = Modifier.height(14.dp))
                 }
             }
@@ -565,7 +586,7 @@ private fun GalleryImageDialog(
 }
 
 @Composable
-private fun RatingRow(rating: Rating) {
+internal fun RatingRow(rating: Rating) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -595,7 +616,11 @@ private fun RatingRow(rating: Rating) {
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = rating.review,
+            text = rating.review.ifBlank {
+                stringResource(
+                    R.string.rating_no_written_review
+                )
+            },
             color = CutTimeTextSecondary,
             lineHeight = 20.sp,
             fontSize = 14.sp
@@ -656,7 +681,8 @@ private fun ProfileHeader(
                     Spacer(modifier = Modifier.width(5.dp))
                     Text(
                         text =
-                            "${barberShop.rating} (${barberShop.reviewCount} reviews)",
+                            RatingAverage.format(barberShop.rating) +
+                                " (" + barberShop.reviewCount + " reviews)",
                         color = CutTimeTextSecondary,
                         fontSize = 14.sp
                     )

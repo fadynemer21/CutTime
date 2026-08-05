@@ -25,6 +25,7 @@ class AppRoutePolicyTest {
     fun generatedArgumentDestinationsAreAllowed() {
         listOf(
             AppRoute.BarberProfile.create("barber one"),
+            AppRoute.BarberReviews.create("barber one"),
             AppRoute.Booking.create("barber/two"),
             AppRoute.CustomerAppointmentDetail.create("appointment 1"),
             AppRoute.BarberAppointmentDetail.create("appointment 1"),

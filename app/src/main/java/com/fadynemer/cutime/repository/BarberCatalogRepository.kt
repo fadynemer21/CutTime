@@ -14,6 +14,7 @@ import com.fadynemer.cutime.model.DayAvailability
 import com.fadynemer.cutime.model.OpeningHours
 import com.fadynemer.cutime.model.effectiveWorkingPeriods
 import com.fadynemer.cutime.util.NextAvailabilityFormatter
+import com.fadynemer.cutime.util.RatingAverage
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import java.time.LocalDate
@@ -210,8 +211,9 @@ class BarberCatalogRepository(
         var services: List<BarberService>? = null
         var availability: BarberAvailability? = null
         var occupiedTimesByDate: Map<String, Set<String>>? = null
+        var ratingStars: List<Int>? = null
         var firstError: Throwable? = null
-        val remaining = AtomicInteger(3)
+        val remaining = AtomicInteger(4)
 
         fun finish() {
             if (remaining.decrementAndGet() != 0) return
@@ -244,10 +246,13 @@ class BarberCatalogRepository(
             }
             val days = barberAvailability.days
 
-            val rating =
-                profile.getDouble("ratingAverage") ?: 0.0
-            val ratingCount =
-                profile.getLong("ratingCount")?.toInt() ?: 0
+            val savedStars = ratingStars.orEmpty()
+            val rating = RatingAverage.roundToHalf(
+                savedStars
+                    .takeIf(List<Int>::isNotEmpty)
+                    ?.average() ?: 0.0
+            )
+            val ratingCount = savedStars.size
             val openingHours =
                 days.map { day ->
                     OpeningHours(
@@ -360,6 +365,23 @@ class BarberCatalogRepository(
                                     .takeIf { it.matches(Regex("\\d{2}:\\d{2}")) }
                             }.toSet()
                         }
+                finish()
+            }
+            .addOnFailureListener { error ->
+                firstError = firstError ?: error
+                finish()
+            }
+
+        firestore
+            .collection(RATINGS_COLLECTION)
+            .whereEqualTo("barberId", barberId)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                ratingStars = snapshot.documents.mapNotNull { document ->
+                    document.getLong("stars")
+                        ?.toInt()
+                        ?.takeIf { it in 1..5 }
+                }
                 finish()
             }
             .addOnFailureListener { error ->
@@ -493,5 +515,6 @@ class BarberCatalogRepository(
         const val SERVICES_COLLECTION = "services"
         const val AVAILABILITY_COLLECTION = "barberAvailability"
         const val SLOTS_COLLECTION = "bookingSlots"
+        const val RATINGS_COLLECTION = "ratings"
     }
 }

@@ -46,6 +46,12 @@ sealed class AppRoute(
             "barber_profile/${encodeRouteArgument(barberId)}"
     }
 
+    data object BarberReviews :
+        AppRoute("barber_reviews/{barberId}") {
+        fun create(barberId: String) =
+            "barber_reviews/${encodeRouteArgument(barberId)}"
+    }
+
     data object Booking :
         AppRoute("booking/{barberId}") {
         fun create(barberId: String) =
@@ -102,6 +108,7 @@ object AppRoutePolicy {
 
     private val argumentPrefixes = setOf(
         "barber_profile/",
+        "barber_reviews/",
         "booking/",
         "appointment/",
         "barber_appointment/",

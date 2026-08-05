@@ -382,7 +382,7 @@ private fun DashboardReviews(
                     }
                 }
 
-                uiState.reviewsWithText.isEmpty() -> {
+                uiState.ratings.isEmpty() -> {
                     Text(
                         text = stringResource(R.string.barber_profile_no_reviews),
                         color = CutTimeTextSecondary
@@ -390,7 +390,7 @@ private fun DashboardReviews(
                 }
 
                 else -> {
-                    uiState.reviewsWithText.take(5)
+                    uiState.ratings.take(5)
                         .forEach { rating ->
                             DashboardReviewRow(rating)
                         }
@@ -427,7 +427,9 @@ private fun DashboardReviewRow(rating: Rating) {
             }
         }
         Text(
-            text = rating.review,
+            text = rating.review.ifBlank {
+                stringResource(R.string.rating_no_written_review)
+            },
             color = CutTimeTextSecondary,
             fontSize = 14.sp
         )

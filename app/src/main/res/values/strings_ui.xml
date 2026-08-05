@@ -144,4 +144,8 @@
     <string name="rating_five_star_label">5 stars (best)</string>
     <string name="rating_selected">%1$d of 5 stars selected</string>
     <string name="rating_customers_only">Ratings are available only to customer accounts.</string>
+    <string name="rating_no_written_review">No written review.</string>
+    <string name="barber_profile_view_all_reviews">View all %1$d reviews</string>
+    <string name="barber_reviews_title">Customer Reviews</string>
+    <string name="barber_reviews_count">%1$d reviews</string>
 </resources>

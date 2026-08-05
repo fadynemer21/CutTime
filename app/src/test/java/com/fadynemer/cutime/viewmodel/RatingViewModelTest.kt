@@ -274,6 +274,13 @@ class RatingViewModelTest {
             submitCallback = onResult
         }
 
+        override fun deleteRating(
+            appointmentId: String,
+            onResult: (Result<Unit>) -> Unit
+        ) {
+            error("Not used")
+        }
+
         override fun observeBarberRatings(
             barberId: String,
             onResult: (Result<List<Rating>>) -> Unit

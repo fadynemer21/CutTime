@@ -440,7 +440,7 @@ private fun DetailRow(
             text = label,
             color = CutTimeTextSecondary,
             maxLines = 1,
-            modifier = Modifier.width(66.dp)
+            modifier = Modifier.width(76.dp)
         )
         Text(
             text = value,
